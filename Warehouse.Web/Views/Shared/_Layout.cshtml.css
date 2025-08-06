@@ -1,11 +1,11 @@
 ﻿.sidebar {
-    width: 250px;
+    width: 270px;
     background-color: #e7bc91;
     height: 100vh;
 }
 
 .sidebar-header {
-    background-color: #cfb38c;
+    background-color: #c6a980;
     color: #333;
     padding: 15px;
     font-size: 1.2em;
@@ -42,5 +42,5 @@
 
 .main-content {
     padding: 20px;
-    background-color: #fff;
+    background-color: #cfb086;
 }
