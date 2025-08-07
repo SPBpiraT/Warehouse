@@ -24,8 +24,8 @@ namespace Warehouse.Web.Controllers
             {
                 ResourcesList = new List<ResourceViewModel>()
                 {
-                    //new ResourceViewModel { Title = "Peanut" },
-                    //new ResourceViewModel { Title = "Cherry" }
+                    new ResourceViewModel { Title = "Peanut" },
+                    new ResourceViewModel { Title = "Cherry" }
                 }
             });
         }
