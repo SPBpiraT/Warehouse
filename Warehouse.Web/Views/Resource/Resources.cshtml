@@ -4,18 +4,37 @@
     ViewData["Title"] = "Ресурсы";
 }
 
-<h1 class="fs-4 fw-bold">@ViewData["Title"]</h1>
+<div class="container mt-5">
+    <div class="d-flex justify-content-between mb-4">
+        <h1 class="h3 mb-5 mt-4" style="color: #333;">@ViewData["Title"]</h1>
+        <div>
+            <button class="btn btn-lg px-3 mt-3" style="background-color: #b09166; color: #333;">Добавить</button>
+            <button class="btn btn-lg px-3 mt-3" style="background-color: #b09166; color: #333;">К архиву</button>
+        </div>
+    </div>
 
-@if (Model.ResourcesList != null && Model.ResourcesList.Any())
-{
-    <ul>
-        @foreach (var resource in Model.ResourcesList)
-        {
-            <li class="fs-4">@resource.Title</li>
-        }
-    </ul>
-}
-else
-{
-    <p>Нет доступных ресурсов.</p>
-}
+    @if (Model.ResourcesList != null && Model.ResourcesList.Any())
+    {
+        <div class="table-responsive" style="max-height: 600px;">
+            <table class="table align-middle w-auto">
+                <thead>
+                    <tr>
+                        <th class="h4 ps-0" style="color: #333;">Наименование</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var resource in Model.ResourcesList)
+                    {
+                        <tr>
+                            <td class="h5" style="color: #333; border: 1px solid black;">@resource.Title</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert h5 ps-0" style="color: #333;">Нет доступных ресурсов.</div>
+    }
+</div>
