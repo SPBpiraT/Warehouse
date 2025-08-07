@@ -5,7 +5,7 @@
 }
 
 .sidebar-header {
-    background-color: #c6a980;
+    background-color: #cfb086;
     color: #333;
     padding: 15px;
     font-size: 1.2em;
@@ -34,14 +34,19 @@
     font-weight: bold;
     background-color: #e7bc91;
     text-decoration: none;
+    transition: background-color 0.7s;
 }
 
 ::deep .sidebar-link:hover {
     background-color: #f3d5b5;
 }
 
+::deep .sidebar-link.active {
+    background-color: #f3d5b5;
+}
+
 .main-content {
     color: #333;
     padding: 15px;
-    background-color: #cfb086;
+    background-color: #c6a980;
 }
