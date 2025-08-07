@@ -1,0 +1,21 @@
+﻿@model Warehouse.Web.Models.Resource.ResourcesListViewModel
+
+@{
+    ViewData["Title"] = "Ресурсы";
+}
+
+<h1 class="fs-4 fw-bold">@ViewData["Title"]</h1>
+
+@if (Model.ResourcesList != null && Model.ResourcesList.Any())
+{
+    <ul>
+        @foreach (var resource in Model.ResourcesList)
+        {
+            <li class="fs-4">@resource.Title</li>
+        }
+    </ul>
+}
+else
+{
+    <p>Нет доступных ресурсов.</p>
+}
