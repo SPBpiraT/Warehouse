@@ -9,63 +9,28 @@
     <link rel="stylesheet" href="~/Warehouse.Web.styles.css" asp-append-version="true" />
 </head>
 
-<body>
-    <div class="container-fluid overflow-hidden">
-        <div class="row vh-100 overflow-auto">
-            <div class="col-12 col-sm-3 col-xl-2 px-sm-2 px-0 bg-dark d-flex sticky-top">
-                <div class="d-flex flex-sm-column flex-row flex-grow-1 align-items-center align-items-sm-start px-3 pt-2 text-white">
-                    <a href="@Url.Action("Index", "Home")" class="d-flex align-items-center pb-sm-3 mb-md-0 me-md-auto text-white text-decoration-none">
-                        <span class="fs-5 text-uppercase">Управление <span class="d-none d-sm-inline text-uppercase">складом</span></span>
-                    </a>
-                    <ul class="nav nav-pills flex-sm-column flex-row flex-nowrap flex-shrink-1 flex-sm-grow-0 flex-grow-1 mb-sm-auto mb-0 justify-content-center align-items-center align-items-sm-start gap-4" id="menu">
-                        <li class="nav-section-title">
-                            <span class="px-sm-0 px-2 text-uppercase d-none d-sm-inline">Склад</span>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link px-sm-0 px-2 link-light" asp-controller="Warehouse" asp-action="Balance">
-                                <span class="ms-1 d-none d-sm-inline">Баланс</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link px-sm-0 px-2 link-light" asp-controller="Warehouse" asp-action="Incoming">
-                                <span class="ms-1 d-none d-sm-inline">Поступления</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link px-sm-0 px-2 link-light" asp-controller="Warehouse" asp-action="Outgoing">
-                                <span class="ms-1 d-none d-sm-inline">Отгрузки</span>
-                            </a>
-                        </li>
-                        <li class="nav-section-title">
-                            <span class="px-sm-0 px-2 text-uppercase d-none d-sm-inline">Справочники</span>
-                        </li>
-                        <li>
-                            <a class="nav-link px-sm-0 px-2 link-light" asp-controller="Client" asp-action="Clients">
-                                <span class="ms-1 d-none d-sm-inline">Клиенты</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link px-sm-0 px-2 link-light" asp-controller="Unit" asp-action="Units">
-                                <span class="ms-1 d-none d-sm-inline">Единицы измерения</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link px-sm-0 px-2 link-light" asp-controller="Resource" asp-action="Resources">
-                                <span class="ms-1 d-none d-sm-inline">Ресурсы</span>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            <div class="col d-flex flex-column h-sm-100">
-                <main class="row overflow-auto">
-                    @RenderBody()
-                </main>
-                <footer class="row bg-light py-4 mt-auto">
-                    <div class="col"> Footer </div>
-                </footer>
-            </div>
+<body class="d-flex flex-nowrap">
+    <div class="sidebar d-flex flex-column flex-shrink-0">
+        <div class="sidebar-header">
+            <a href="@Url.Action("Index", "Home")">Управление складом</a>
         </div>
+
+        <div class="sidebar-section">Склад</div>
+            <a class="sidebar-link" asp-controller="Warehouse" asp-action="Balance">Баланс</a>
+            <a class="sidebar-link" asp-controller="Warehouse" asp-action="Incoming">Поступления</a>
+            <a class="sidebar-link" asp-controller="Warehouse" asp-action="Outgoing">Отгрузки</a>
+
+        <div class="sidebar-section">Справочники</div>
+            <a class="sidebar-link" asp-controller="References" asp-action="Clients">Клиенты</a>
+            <a class="sidebar-link" asp-controller="References" asp-action="Units">Единицы измерения</a>
+            @* <a class="sidebar-link" asp-controller="Resource" asp-action="Resources">Ресурсы</a> *@
+            <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Resource" &&
+                ViewContext.RouteData.Values["action"]?.ToString() == "Resources" ? "active" : "")"
+                asp-controller="Resource" asp-action="Resources">Ресурсы</a>
+    </div>
+
+    <div class="main-content flex-grow-1 overflow-auto">
+        @RenderBody()
     </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
@@ -75,9 +40,3 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
-
-
-
-    @*  <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Resource" &&
-                ViewContext.RouteData.Values["action"]?.ToString() == "Resources" ? "active" : "")"
-       asp-controller="Resource" asp-action="Resources">Ресурсы</a> *@
