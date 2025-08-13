@@ -4,18 +4,41 @@
     ViewData["Title"] = "Ресурсы";
 }
 
-<h1 class="fs-4 fw-bold">@ViewData["Title"]</h1>
-
-@if (Model.ResourcesList != null && Model.ResourcesList.Any())
-{
-    <ul>
-        @foreach (var resource in Model.ResourcesList)
-        {
-            <li class="fs-4">@resource.Title</li>
-        }
-    </ul>
-}
-else
-{
-    <p>Нет доступных ресурсов.</p>
-}
+<div class="container">
+    <div class="row">
+        <div class="col-6">
+            <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+            <div>
+                <a class="btn btn-dark text-truncate" asp-controller="Resource" asp-action="Add">Добавить</a>
+                <a class="btn btn-dark text-truncate" asp-controller="Resource" asp-action="Archieve">К архиву</a>
+            </div>
+        </div>
+    </div>
+    <br>
+    <table class="table table-hover border border-dark w-100">
+        <thead>
+            <tr>
+                <th class="text-truncate" scope="col">
+                    @Html.DisplayName("Наименование")
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.ResourcesList is not null)
+            {
+                foreach (var resource in Model.ResourcesList)
+                {
+                    <tr>
+                        <td class="text-truncate">
+                            @Html.DisplayFor(modelItem => resource.Title)
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <p>Нет доступных ресурсов.</p>
+            }
+        </tbody>
+    </table>
+</div>
