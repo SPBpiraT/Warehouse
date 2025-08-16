@@ -1,0 +1,34 @@
+﻿@model Warehouse.Web.Models.Resource.ResourceViewModel
+@{
+    ViewData["Title"] = "Ресурс";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-6">
+            <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+            <form method="post" asp-action="Edit">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <input type="hidden" asp-for="Id"/>
+                <div class="form-group mt-3">
+                    <input type="submit" value="Сохранить" class="btn btn-dark link__hover"/>
+                    <button asp-action="Delete" class="btn btn-dark link__hover text-truncate">Удалить</button>
+                    <button asp-action="ToArchieve" class="btn btn-dark link__hover text-truncate">В архив</button>
+                    <a asp-action="Index" class="btn btn-dark link__hover text-truncate">Назад к списку</a>
+                </div>
+                <div asp-validation-summary="All" class="text-danger"></div>
+                <div class="form-group">
+                    <label class="control-label w-100 text-truncate">Наименование</label>
+                    <input asp-for="Title" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        <partial name="_ValidationScriptsPartial" />
+    }
+}

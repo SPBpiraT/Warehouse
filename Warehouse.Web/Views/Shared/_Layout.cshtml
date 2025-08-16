@@ -35,7 +35,7 @@
                         <a class="d-block text-decoration-none text-light px-2 link__hover text-truncate" asp-controller="References" asp-action="Units">Единицы измерения</a>
                     </li>
                     <li class="mb-3">
-                        <a class="d-block text-decoration-none text-light px-2 link__hover" asp-controller="Resource" asp-action="Resources">Ресурсы</a>
+                        <a class="d-block text-decoration-none text-light px-2 link__hover" asp-controller="Resource" asp-action="Index">Ресурсы</a>
                     </li>
                 </ul>
             </nav>
@@ -54,10 +54,3 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
-
-
-@* 
-            <a class="sidebar-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Resource" &&
-                ViewContext.RouteData.Values["action"]?.ToString() == "Resources" ? "active" : "")"
-                asp-controller="Resource" asp-action="Resources">Ресурсы</a>
-                *@
