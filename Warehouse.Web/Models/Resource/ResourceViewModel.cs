@@ -1,7 +1,10 @@
-﻿namespace Warehouse.Web.Models.Resource
+﻿
+namespace Warehouse.Web.Models.Resource
 {
     public record ResourceViewModel
     {
-        public required string Title { get; set; }
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public bool IsActive { get; set; }
     }
 }

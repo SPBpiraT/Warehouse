@@ -9,8 +9,8 @@
         <div class="col-6">
             <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
             <div>
-                <a class="btn btn-dark link__hover text-truncate" asp-controller="Resource" asp-action="Add">Добавить</a>
-                <a class="btn btn-dark link__hover text-truncate" asp-controller="Resource" asp-action="Archieve">К архиву</a>
+                <a asp-controller="Resource" asp-action="Create" class="btn btn-dark link__hover text-truncate">Добавить</a>
+                <a asp-controller="Resource" asp-action="Archieve" class="btn btn-dark link__hover text-truncate">К архиву</a>
             </div>
         </div>
     </div>
@@ -30,7 +30,7 @@
                 {
                     <tr>
                         <td class="text-truncate">
-                            @Html.DisplayFor(modelItem => resource.Title)
+                            <a asp-controller="Resource" asp-action="Edit" asp-route-title="@resource.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => resource.Title)</a>
                         </td>
                     </tr>
                 }

@@ -12,22 +12,86 @@ namespace Warehouse.Web.Controllers
             _logger = logger;
         }
 
-        public IActionResult Resource()
+        public async Task<IActionResult> Index()
         {
-
-            return View(new ResourceViewModel { Title = "Banana"});
-        }
-
-        public IActionResult Resources()
-        {
-            return View(new ResourcesListViewModel
+            var resources = new ResourcesListViewModel()
             {
+                //UoW Get
                 ResourcesList = new List<ResourceViewModel>()
                 {
-                    new ResourceViewModel { Title = "Peanut" },
-                    new ResourceViewModel { Title = "Cherry" }
+                    new ResourceViewModel
+                    {
+                        Id = 1,
+                        Title = "Peanut",
+                        IsActive = true
+                    },
+                    new ResourceViewModel
+                    {
+                        Id = 2,
+                        Title = "Cherry",
+                        IsActive = true
+                    }
                 }
-            });
+            };
+            return View(resources);
+        }
+
+        public async Task<IActionResult> Archieve()
+        {
+            return View();
+        }
+        public async Task<IActionResult> Create()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([Bind("Id,Title")] ResourceViewModel resource)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        public async Task<IActionResult> Edit(int id)
+        {
+            //UoW Get
+            var resource = new ResourceViewModel
+            {
+                Id = id,
+                Title = "Get"
+            };
+
+            return View(resource);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title")] ResourceViewModel resource)
+        {
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
+            }
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> MoveToArchieve(int id)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            return RedirectToAction(nameof(Index));
         }
     }
 }
