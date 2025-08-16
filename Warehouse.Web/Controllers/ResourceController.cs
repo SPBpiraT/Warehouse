@@ -36,7 +36,7 @@ namespace Warehouse.Web.Controllers
             return View(resources);
         }
 
-        public async Task<IActionResult> Archieve()
+        public async Task<IActionResult> Archive()
         {
             return View();
         }
@@ -83,7 +83,7 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> MoveToArchieve(int id)
+        public async Task<IActionResult> MoveToArchive(int id)
         {
             return RedirectToAction(nameof(Index));
         }
