@@ -84,18 +84,40 @@ namespace Warehouse.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        public async Task<IActionResult> EditArchived(int id)
+        {
+            //UoW Get
+            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
+            var vm = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
+            return View(vm);
+        }
+
         [HttpPost]
         public async Task<IActionResult> MoveToArchive(int id)
         {
             var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
             var res = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
-            if (res is not null)
+            if (res is not null && res.IsActive)
             {
                 res.IsActive = false;
             }
             _memoryCache.Set("Resources", resources);
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpPost]
+        public async Task<IActionResult> MoveToActual(int id)
+        {
+            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
+            var res = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
+            if (res is not null && !res.IsActive)
+            {
+                res.IsActive = true;
+            }
+            _memoryCache.Set("Resources", resources);
+            return RedirectToAction(nameof(Index));
+        }
+
 
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
