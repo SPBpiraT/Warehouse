@@ -24,7 +24,7 @@
             </tr>
         </thead>
         <tbody>
-            @if (Model.ResourcesList is not null)
+            @if (Model.ResourcesList is not null && Model.ResourcesList.Count() > 0)
             {
                 foreach (var resource in Model.ResourcesList)
                 {
@@ -37,7 +37,9 @@
             }
             else
             {
-                <p>Нет доступных ресурсов.</p>
+                <tr>
+                    <td>Список ресурсов пуст!</td>
+                </tr>
             }
         </tbody>
     </table>
