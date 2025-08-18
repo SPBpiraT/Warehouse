@@ -2,6 +2,6 @@
 {
     public record ResourcesListViewModel
     {
-        public IEnumerable<ResourceViewModel>? ResourcesList { get; set; }
+        public List<ResourceViewModel>? ResourcesList { get; set; }
     }
 }
