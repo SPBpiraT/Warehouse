@@ -93,31 +93,17 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> MoveToArchive(int id)
+        public async Task<IActionResult> ChangeStatus(int id)
         {
             var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
             var res = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
-            if (res is not null && res.IsActive)
+            if (res is not null)
             {
-                res.IsActive = false;
+                res.IsActive = !res.IsActive;
             }
             _memoryCache.Set("Resources", resources);
             return RedirectToAction(nameof(Index));
         }
-
-        [HttpPost]
-        public async Task<IActionResult> MoveToActual(int id)
-        {
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
-            var res = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
-            if (res is not null && !res.IsActive)
-            {
-                res.IsActive = true;
-            }
-            _memoryCache.Set("Resources", resources);
-            return RedirectToAction(nameof(Index));
-        }
-
 
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
