@@ -13,7 +13,7 @@
                     <input type="hidden" asp-for="Id"/>
                     <button type="submit" class="btn btn-dark link__hover text-truncate" onclick="return confirm('Вы уверены?')">Удалить</button>
                 </form>
-                <form method="post" asp-action="MoveToArchive" class="me-2 mb-2">
+                <form method="post" asp-action="ChangeStatus" class="me-2 mb-2">
                     <input type="hidden" asp-for="Id"/>
                     <button type="submit" class="btn btn-dark link__hover text-truncate">В архив</button>
                 </form>
