@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Warehouse.Web.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
 </head>
 
 <body>
@@ -41,6 +42,7 @@
             </nav>
             <main class="col-12 col-sm bg-secondary text-break p-3">
                 <div>
+                    <partial name="_Notification"/>
                     @RenderBody()
                 </div>
             </main>
