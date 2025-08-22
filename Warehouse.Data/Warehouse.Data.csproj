@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Warehouse.Domain\Warehouse.Domain.csproj" />
+    <ProjectReference Include="..\Warehouse.Interfaces\Warehouse.Interfaces.csproj" />
+  </ItemGroup>
+
 </Project>
