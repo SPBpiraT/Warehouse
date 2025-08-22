@@ -1,4 +1,4 @@
-﻿namespace Warehouse.Web.Models.Resource
+﻿namespace Warehouse.Domain.ViewModels.Resource
 {
     public record ResourcesListViewModel
     {
