@@ -14,11 +14,17 @@
             <form id="createForm" method="post" asp-action="Create">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 <div class="form-group">
-                    <label class="control-label w-100 text-truncate">Наименование</label>
-                    <input asp-for="Title" />
+                    <label asp-for="Title" class="control-label w-100 text-truncate"></label>
+                    <input asp-for="Title"/>
                     <span asp-validation-for="Title" class="text-danger"></span>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+@section Scripts {
+    @{
+        <partial name="_ValidationScriptsPartial" />
+    }
+}
