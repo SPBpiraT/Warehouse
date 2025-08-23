@@ -6,9 +6,10 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <div>
-                <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
-                <button type="submit" form="createForm" class="btn btn-dark link__hover text-truncate mb-2">Сохранить</button>
+            <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+            <div class="d-flex flex-wrap flex-sm-nowrap">
+                <button type="submit" form="createForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Сохранить</button>
+                <a asp-action="Index" class="btn btn-dark link__hover text-truncate me-2 mb-2">Назад к списку</a>
             </div>
             <br>
             <form id="createForm" method="post" asp-action="Create">
