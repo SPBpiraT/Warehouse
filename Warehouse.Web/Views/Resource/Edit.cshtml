@@ -22,9 +22,9 @@
             <br>
             <form id="editForm" method="post" asp-action="Edit">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="Id"/>
                 <div class="form-group">
-                    <label class="control-label w-100 text-truncate">Наименование</label>
+                    <label asp-for="Title" class="control-label w-100 text-truncate"></label>
                     <input asp-for="Title"/>
                     <span asp-validation-for="Title" class="text-danger"></span>
                 </div>
