@@ -1,0 +1,44 @@
+﻿@model Warehouse.Domain.ViewModels.Unit.UnitsListViewModel
+
+@{
+    ViewData["Title"] = "Единицы измерения";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+            <div class="d-flex flex-wrap flex-sm-nowrap">
+                <a asp-controller="Unit" asp-action="Create" class="btn btn-dark link__hover text-truncate me-2 mb-2">Добавить</a>
+                <a asp-controller="Unit" asp-action="Archive" class="btn btn-dark link__hover text-truncate me-2 mb-2">К архиву</a>
+            </div>
+        </div>
+    </div>
+    <br>
+    @if (Model.UnitsList is not null && Model.UnitsList.Count() > 0)
+    {
+        <table class="table table-hover border border-dark w-100">
+            <thead>
+                <tr>
+                    <th class="text-truncate" scope="col">
+                        @Html.DisplayName("Наименование")
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var unit in Model.UnitsList)
+                {
+                    <tr>
+                        <td class="text-truncate">
+                            <a asp-controller="Unit" asp-action="Edit" asp-route-id="@unit.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => unit.Title)</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>Список единиц измерения пуст!</p>
+    }
+</div>
