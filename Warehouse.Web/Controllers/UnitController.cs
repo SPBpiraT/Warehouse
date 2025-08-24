@@ -6,10 +6,10 @@ namespace Warehouse.Web.Controllers
 {
     public class UnitController : Controller
     {
-        private readonly ILogger<ResourceController> _logger;
+        private readonly ILogger<UnitController> _logger;
         private readonly IMemoryCache _memoryCache;
 
-        public UnitController(ILogger<ResourceController> logger, IMemoryCache memoryCache)
+        public UnitController(ILogger<UnitController> logger, IMemoryCache memoryCache)
         {
             _logger = logger;
             _memoryCache = memoryCache;

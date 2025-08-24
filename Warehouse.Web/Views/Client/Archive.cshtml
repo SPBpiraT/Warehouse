@@ -1,0 +1,48 @@
+﻿@model Warehouse.Domain.ViewModels.Client.ClientsListViewModel
+
+@{
+    ViewData["Title"] = "Клиенты";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+            <a asp-controller="Client" asp-action="Index" class="btn btn-dark link__hover text-truncate me-2 mb-2">К рабочим</a>
+        </div>
+    </div>
+    <br>
+
+    @if (Model.ClientsList is not null && Model.ClientsList.Count() > 0)
+    {
+        <table class="table table-hover border border-dark w-100">
+            <thead>
+                <tr>
+                    <th class="text-truncate border-end border-dark" scope="col">
+                        @Html.DisplayName("Наименование")
+                    </th>
+                    <th class="text-truncate" scope="col">
+                        @Html.DisplayName("Адрес")
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var client in Model.ClientsList)
+                {
+                    <tr>
+                        <td class="text-truncate border-end border-dark">
+                            <a asp-controller="Client" asp-action="EditArchived" asp-route-id="@client.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => client.Title)</a>
+                        </td>
+                        <td class="text-truncate">
+                            <a asp-controller="Client" asp-action="EditArchived" asp-route-id="@client.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => client.Address)</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>Список клиентов пуст!</p>
+    }
+</div>
