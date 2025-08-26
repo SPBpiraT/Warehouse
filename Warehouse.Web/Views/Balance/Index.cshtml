@@ -1,0 +1,35 @@
+﻿@model Warehouse.Domain.ViewModels.Balance.BalancesListViewModel
+
+@{
+    ViewData["Title"] = "Баланс";
+}
+
+<a asp-action="MakeTestData" class="btn btn-dark">Добавить тестовые данные</a>
+<form method="get">
+    <div>
+        <label>Ресурс: </label>
+        <select name="resource" asp-items="Model.Resources"></select>
+
+        <label>Единица измерения: </label>
+        <select name="unit" asp-items="Model.Units"></select>
+
+        <input type="submit" value="Фильтр" />
+    </div>
+</form>
+
+<table>
+    <tr>
+        <th>Ресурс</th>
+        <th>Единица измерения</th>
+        <th>Количество</th>
+    </tr>
+
+    @foreach (var balance in Model.BalancesList)
+    {
+        <tr>
+            <td>@balance.Resource?.Title</td>
+            <td>@balance.Unit?.Title</td>
+            <td>@balance.Quantity</td>
+        </tr>
+    }
+</table>
