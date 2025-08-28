@@ -2,6 +2,6 @@
 {
     public record ClientsListViewModel
     {
-        public List<ClientViewModel>? ClientsList { get; set; }
+        public IEnumerable<Entities.Client> Clients { get; set; }
     }
 }

@@ -13,7 +13,7 @@
     </div>
     <br>
 
-    @if (Model.ResourcesList is not null && Model.ResourcesList.Count() > 0)
+    @if (Model.Resources is not null && Model.Resources.Count() > 0)
     {
         <table class="table table-hover border border-dark w-100">
             <thead>
@@ -24,7 +24,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var resource in Model.ResourcesList)
+                @foreach (var resource in Model.Resources)
                 {
                     <tr>
                         <td class="text-truncate">
