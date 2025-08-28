@@ -8,10 +8,14 @@
 <form method="get">
     <div>
         <label>Ресурс: </label>
-        <select name="resource" asp-items="Model.Resources"></select>
+        <select name="resource" asp-items="Model.Resources">
+            <option value="">Все</option>
+        </select>
 
         <label>Единица измерения: </label>
-        <select name="unit" asp-items="Model.Units"></select>
+        <select name="unit" asp-items="Model.Units">
+            <option value="">Все</option>
+        </select>
 
         <input type="submit" value="Фильтр" />
     </div>
@@ -24,7 +28,7 @@
         <th>Количество</th>
     </tr>
 
-    @foreach (var balance in Model.BalancesList)
+    @foreach (var balance in Model.Balances)
     {
         <tr>
             <td>@balance.Resource?.Title</td>

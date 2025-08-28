@@ -2,6 +2,6 @@
 {
     public record UnitsListViewModel
     {
-        public List<UnitViewModel>? UnitsList { get; set; }
+        public IEnumerable<Entities.Unit> Units { get; set; }
     }
 }

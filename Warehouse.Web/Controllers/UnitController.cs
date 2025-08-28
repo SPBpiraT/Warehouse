@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using Warehouse.Domain.Entities;
 using Warehouse.Domain.ViewModels.Unit;
 
 namespace Warehouse.Web.Controllers
@@ -18,8 +19,8 @@ namespace Warehouse.Web.Controllers
         public async Task<IActionResult> Index()
         {
             //UoW GetAll
-            var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
-            var vm = new UnitsListViewModel() { UnitsList = units.UnitsList.Where(x => x.IsActive).ToList() };
+            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
+            var vm = new UnitsListViewModel() { Units = units.Where(x => x.IsActive).ToList() };
             return View(vm);
 
 
@@ -27,8 +28,8 @@ namespace Warehouse.Web.Controllers
 
         public async Task<IActionResult> Archive()
         {
-            var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
-            var vm = new UnitsListViewModel() { UnitsList = units.UnitsList.Where(x => !x.IsActive).ToList() };
+            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
+            var vm = new UnitsListViewModel() { Units = units.Where(x => !x.IsActive).ToList() };
             return View(vm);
         }
         public async Task<IActionResult> Create()
@@ -37,17 +38,17 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([Bind("Title")] UnitViewModel unit)
+        public async Task<IActionResult> Create([Bind("Title")] Unit unit)
         {
-            var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
+            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
 
             try
             {
                 if (ModelState.IsValid)
                 {
-                    units.UnitsList.Add(new UnitViewModel()
+                    units.Add(new Unit()
                     {
-                        Id = units.UnitsList.Count() + 1,
+                        Id = units.Count() + 1,
                         Title = unit.Title,
                         IsActive = true
                     });
@@ -71,8 +72,8 @@ namespace Warehouse.Web.Controllers
                 return NotFound();
             }
             //UoW Get
-            var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
-            var vm = units.UnitsList.FirstOrDefault(x => x.Id == id);
+            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
+            var vm = units.FirstOrDefault(x => x.Id == id);
 
             if (vm == null)
             {
@@ -82,7 +83,7 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title")] UnitViewModel unit)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title")] Unit unit)
         {
             if (id != unit.Id)
             {
@@ -93,8 +94,8 @@ namespace Warehouse.Web.Controllers
             {
                 try
                 {
-                    var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
-                    var un = units.UnitsList.FirstOrDefault(x => x.Id == id);
+                    var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
+                    var un = units.FirstOrDefault(x => x.Id == id);
                     if (un is not null)
                     {
                         un.Title = unit.Title;
@@ -119,8 +120,8 @@ namespace Warehouse.Web.Controllers
                 return NotFound();
             }
             //UoW Get
-            var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
-            var vm = units.UnitsList.FirstOrDefault(x => x.Id == id);
+            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
+            var vm = units.FirstOrDefault(x => x.Id == id);
 
             if (vm == null)
             {
@@ -132,15 +133,16 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> ChangeStatus(int id)
         {
-            var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
+            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
 
             try
             {
-                var unit = units.UnitsList.FirstOrDefault(x => x.Id == id);
+                var unit = units.FirstOrDefault(x => x.Id == id);
                 if (unit is not null)
                 {
                     unit.IsActive = !unit.IsActive;
                 }
+
                 _memoryCache.Set("Units", units);
                 return RedirectToAction(nameof(Index));
             }
@@ -153,11 +155,13 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
-            var units = _memoryCache.Get<UnitsListViewModel>("Units") ?? new UnitsListViewModel() { UnitsList = new List<UnitViewModel>() };
+            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
             try
             {
-                var unit = units.UnitsList.FirstOrDefault(x => x.Id == id);
-                if (unit is not null) units.UnitsList.Remove(unit);
+                var unit = units.FirstOrDefault(x => x.Id == id);
+                if (unit is not null) units.Remove(unit);
+
+                _memoryCache.Set("Units", units);
                 TempData["Success"] = "Единица измерения успешно удалена.";
                 return RedirectToAction(nameof(Index));
             }

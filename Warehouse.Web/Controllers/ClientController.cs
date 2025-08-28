@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using Warehouse.Domain.Entities;
 using Warehouse.Domain.ViewModels.Client;
 
 namespace Warehouse.Web.Controllers
@@ -18,8 +19,8 @@ namespace Warehouse.Web.Controllers
         public async Task<IActionResult> Index()
         {
             //UoW GetAll
-            var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
-            var vm = new ClientsListViewModel() { ClientsList = clients.ClientsList.Where(x => x.IsActive).ToList() };
+            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
+            var vm = new ClientsListViewModel() { Clients = clients.Where(x => x.IsActive).ToList() };
             return View(vm);
 
 
@@ -27,8 +28,8 @@ namespace Warehouse.Web.Controllers
 
         public async Task<IActionResult> Archive()
         {
-            var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
-            var vm = new ClientsListViewModel() { ClientsList = clients.ClientsList.Where(x => !x.IsActive).ToList() };
+            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
+            var vm = new ClientsListViewModel() { Clients = clients.Where(x => !x.IsActive).ToList() };
             return View(vm);
         }
         public async Task<IActionResult> Create()
@@ -37,17 +38,17 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([Bind("Title,Address")] ClientViewModel client)
+        public async Task<IActionResult> Create([Bind("Title,Address")] Client client)
         {
-            var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
+            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
 
             try
             {
                 if (ModelState.IsValid)
                 {
-                    clients.ClientsList.Add(new ClientViewModel()
+                    clients.Add(new Client()
                     {
-                        Id = clients.ClientsList.Count() + 1,
+                        Id = clients.Count() + 1,
                         Title = client.Title,
                         Address = client.Address,
                         IsActive = true
@@ -72,18 +73,18 @@ namespace Warehouse.Web.Controllers
                 return NotFound();
             }
             //UoW Get
-            var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
-            var vm = clients.ClientsList.FirstOrDefault(x => x.Id == id);
+            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
+            var cli = clients.FirstOrDefault(x => x.Id == id);
 
-            if (vm == null)
+            if (cli == null)
             {
                 return NotFound();
             }
-            return View(vm);
+            return View(cli);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Address")] ClientViewModel client)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Address")] Client client)
         {
             if (id != client.Id)
             {
@@ -94,8 +95,8 @@ namespace Warehouse.Web.Controllers
             {
                 try
                 {
-                    var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
-                    var cli = clients.ClientsList.FirstOrDefault(x => x.Id == id);
+                    var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
+                    var cli = clients.FirstOrDefault(x => x.Id == id);
                     if (cli is not null)
                     {
                         cli.Title = client.Title;
@@ -121,8 +122,8 @@ namespace Warehouse.Web.Controllers
                 return NotFound();
             }
             //UoW Get
-            var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
-            var vm = clients.ClientsList.FirstOrDefault(x => x.Id == id);
+            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
+            var vm = clients.FirstOrDefault(x => x.Id == id);
 
             if (vm == null)
             {
@@ -134,11 +135,11 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> ChangeStatus(int id)
         {
-            var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
+            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
 
             try
             {
-                var cli = clients.ClientsList.FirstOrDefault(x => x.Id == id);
+                var cli = clients.FirstOrDefault(x => x.Id == id);
                 if (cli is not null)
                 {
                     cli.IsActive = !cli.IsActive;
@@ -155,11 +156,13 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
-            var clients = _memoryCache.Get<ClientsListViewModel>("Clients") ?? new ClientsListViewModel() { ClientsList = new List<ClientViewModel>() };
+            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
             try
             {
-                var cli = clients.ClientsList.FirstOrDefault(x => x.Id == id);
-                if (cli is not null) clients.ClientsList.Remove(cli);
+                var cli = clients.FirstOrDefault(x => x.Id == id);
+                if (cli is not null) clients.Remove(cli);
+
+                _memoryCache.Set("Clients", clients);
                 TempData["Success"] = "Клиент успешно удален.";
                 return RedirectToAction(nameof(Index));
             }

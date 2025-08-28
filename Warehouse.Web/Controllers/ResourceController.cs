@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Warehouse.Domain.ViewModels.Resource;
 using Microsoft.Extensions.Caching.Memory;
+using Warehouse.Domain.Entities;
 
 namespace Warehouse.Web.Controllers
 {
@@ -18,8 +19,8 @@ namespace Warehouse.Web.Controllers
         public async Task<IActionResult> Index()
         {
             //UoW GetAll
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
-            var vm = new ResourcesListViewModel() { ResourcesList = resources.ResourcesList.Where(x => x.IsActive).ToList() };
+            var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
+            var vm = new ResourcesListViewModel() { Resources = resources.Where(x => x.IsActive).ToList() };
             return View(vm);
 
 
@@ -27,8 +28,8 @@ namespace Warehouse.Web.Controllers
 
         public async Task<IActionResult> Archive()
         {
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
-            var vm = new ResourcesListViewModel() { ResourcesList = resources.ResourcesList.Where(x => !x.IsActive).ToList() };
+            var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
+            var vm = new ResourcesListViewModel() { Resources = resources.Where(x => !x.IsActive).ToList() };
             return View(vm);
         }
         public async Task<IActionResult> Create()
@@ -37,17 +38,17 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([Bind("Title")] ResourceViewModel resource)
+        public async Task<IActionResult> Create([Bind("Title")] Resource resource)
         {
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
+            var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
 
             try
             {
                 if (ModelState.IsValid)
                 {
-                    resources.ResourcesList.Add(new ResourceViewModel()
+                    resources.Add(new Resource()
                     {
-                        Id = resources.ResourcesList.Count() + 1,
+                        Id = resources.Count() + 1,
                         Title = resource.Title,
                         IsActive = true
                     });
@@ -71,8 +72,8 @@ namespace Warehouse.Web.Controllers
                 return NotFound();
             }
             //UoW Get
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
-            var vm = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
+            var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
+            var vm = resources.FirstOrDefault(x => x.Id == id);
 
             if (vm == null)
             {
@@ -82,7 +83,7 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title")] ResourceViewModel resource)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title")] Resource resource)
         {
             if (id != resource.Id)
             {
@@ -93,8 +94,8 @@ namespace Warehouse.Web.Controllers
             {
                 try
                 {
-                    var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
-                    var res = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
+                    var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
+                    var res = resources.FirstOrDefault(x => x.Id == id);
                     if (res is not null)
                     {
                         res.Title = resource.Title;
@@ -119,8 +120,8 @@ namespace Warehouse.Web.Controllers
                 return NotFound();
             }
             //UoW Get
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
-            var vm = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
+            var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
+            var vm = resources.FirstOrDefault(x => x.Id == id);
 
             if (vm == null)
             {
@@ -132,11 +133,11 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> ChangeStatus(int id)
         {
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
+            var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
 
             try
             {
-                var res = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
+                var res = resources.FirstOrDefault(x => x.Id == id);
                 if (res is not null)
                 {
                     res.IsActive = !res.IsActive;
@@ -153,11 +154,13 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
-            var resources = _memoryCache.Get<ResourcesListViewModel>("Resources") ?? new ResourcesListViewModel() { ResourcesList = new List<ResourceViewModel>() };
+            var resources = _memoryCache.Get<List<Resource>>("Resources") ?? new List<Resource>();
             try
             {
-                var res = resources.ResourcesList.FirstOrDefault(x => x.Id == id);
-                if (res is not null) resources.ResourcesList.Remove(res);
+                var res = resources.FirstOrDefault(x => x.Id == id);
+                if (res is not null) resources.Remove(res);
+
+                _memoryCache.Set("Resources", resources);
                 TempData["Success"] = "Ресурс успешно удален.";
                 return RedirectToAction(nameof(Index));
             }
