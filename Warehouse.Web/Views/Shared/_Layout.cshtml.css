@@ -18,6 +18,10 @@ main {
     min-height: 100vh;
 }
 
+.container-fluid {
+    min-width: fit-content;
+}
+
 ::deep .link__hover:hover {
     background-color: rgba(255, 255, 255, 0.1);
     transition: all 0.2s;
