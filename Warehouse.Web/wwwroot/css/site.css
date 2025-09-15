@@ -1,1 +1,31 @@
+.border-bottom:last-child {
+    border-bottom: none !important;
+}
+
+.form-control#daterange:focus {
+    border-color: white;
+    box-shadow: 0 0 0 4px rgb(211, 210, 210, .5);
+    outline: auto;
+    outline-offset: -2px;
+}
+
+.limited-width {
+    max-width: 220px;
+    min-width: 100px;
+}
+
+@media (max-width: 182px) {
+    .bootstrap-select .dropdown-menu {
+        min-width: 130px !important;
+    }
+}
+
+
+
+
+
+
+
+
+
 
