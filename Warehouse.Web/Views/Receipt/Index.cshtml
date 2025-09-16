@@ -3,10 +3,12 @@
 @{
     ViewData["Title"] = "Поступления";
 }
-
+<!--
+    TODO: check for useles styles, make filter logic in controller
+-->
 <div class="container-fluid">
     <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
-    <form method="get">
+    <form id="filterForm" method="get">
         <div class="d-flex flex-column flex-md-row">
             <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
                 <label class="text-truncate">Период</label>
@@ -20,13 +22,16 @@
                 <label asp-for="Resources" class="text-truncate"></label>
                 <select asp-for="SelectedResources" asp-items="Model.Resources" class="selectpicker w-100" data-placeholder="Выберите"></select>
             </div>
-            <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
+            <div class="d-flex flex-column mb-2 w-100 limited-width">
                 <label asp-for="Units" class="text-truncate"></label>
                 <select asp-for="SelectedUnits" asp-items="Model.Units" class="selectpicker w-100" data-placeholder="Выберите"></select>
             </div>
         </div>
-        <button type="submit" class="btn btn-dark link__hover text-truncate">Применить фильтр</button>
     </form>
+    <div class="d-flex flex-wrap flex-sm-nowrap">
+        <button type="submit" form="filterForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Применить фильтр</button>
+        <a asp-action="Create" class="btn btn-dark link__hover text-truncate mb-2">Добавить</a>
+    </div>
     <br>
 
     @if (Model.Receipts is not null && Model.Receipts.Count() > 0)
