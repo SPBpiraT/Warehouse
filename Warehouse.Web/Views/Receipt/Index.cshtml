@@ -12,7 +12,7 @@
         <div class="d-flex flex-column flex-md-row">
             <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
                 <label class="text-truncate">Период</label>
-                <input asp-for="DateRange" class="form-control w-100" type="text" id="daterange" value="01/01/2025 - 01/15/2025"/>
+                <input asp-for="DateRange" class="form-control w-100" type="text" id="daterange" value="@Model.DateRange"/>
             </div>
             <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
                 <label asp-for="ReceiptNumbers" class="text-truncate"></label>
