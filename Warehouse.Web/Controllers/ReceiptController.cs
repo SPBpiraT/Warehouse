@@ -21,22 +21,38 @@ namespace Warehouse.Web.Controllers
         {
             var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
             var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-            var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+            var receiptsCache = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+            var receipts = new List<Receipt>(receiptsCache);
 
             if (receiptsListView.DateRange is not null)
             {
                 var dates = receiptsListView.DateRange.Split(" - ");
-                if (DateTime.TryParse(dates[0], out DateTime start) &&
-                    DateTime.TryParse(dates[1], out DateTime end))
+                if (DateOnly.TryParseExact(dates[0], "MM/dd/yyyy", out DateOnly start) &&
+                    DateOnly.TryParseExact(dates[1], "MM/dd/yyyy", out DateOnly end))
                 {
-                    Console.WriteLine(start);
+                    receipts = receipts.Where(r => r.Date >= start && r.Date <= end).ToList();
                 }
+            }
+
+            if (receiptsListView.SelectedNumbers != null && receiptsListView.SelectedNumbers.Count() > 0)
+            {
+                receipts = receipts.Where(r => receiptsListView.SelectedNumbers.Contains(r.Id)).ToList();
+            }
+
+            if (receiptsListView.SelectedResources != null && receiptsListView.SelectedResources.Count() > 0)
+            {
+                receipts = receipts.Where(r => r.ReceiptItems.Any(i => receiptsListView.SelectedResources.Contains(i.ResourceId))).ToList();             
+            }
+
+            if (receiptsListView.SelectedUnits != null && receiptsListView.SelectedUnits.Count() > 0)
+            {
+                receipts = receipts.Where(r => r.ReceiptItems.Any(i => receiptsListView.SelectedUnits.Contains(i.UnitId))).ToList();
             }
 
             var vm = new ReceiptsListViewModel()
             {
                 Receipts = receipts,
-                ReceiptNumbers = receipts.Select(r => new SelectListItem
+                ReceiptNumbers = receiptsCache.Select(r => new SelectListItem
                 {
                     Text = r.Number.ToString(),
                     Value = r.Id.ToString()
@@ -51,6 +67,7 @@ namespace Warehouse.Web.Controllers
                     Text = u.Title,
                     Value = u.Id.ToString()
                 }),
+                DateRange = receiptsListView.DateRange ?? "01/01/2024 - 01/01/2026",
                 SelectedNumbers = receiptsListView.SelectedNumbers ?? new List<int>(),
                 SelectedResources = receiptsListView.SelectedResources ?? new List<int>(),
                 SelectedUnits = receiptsListView.SelectedUnits ?? new List<int>()
@@ -98,7 +115,7 @@ namespace Warehouse.Web.Controllers
                 {
                     Id = 1,
                     Number = 1,
-                    Date = DateOnly.MinValue,
+                    Date = new(2025, 5, 20),
                     ReceiptItems = new List<ReceiptItem>()
                     {
                         new ReceiptItem()
@@ -127,7 +144,7 @@ namespace Warehouse.Web.Controllers
                 {
                     Id = 2,
                     Number = 2,
-                    Date = DateOnly.MaxValue,
+                    Date = new(2025, 5, 27),
                     ReceiptItems = new List<ReceiptItem>()
                     {
                         new ReceiptItem()
@@ -140,6 +157,35 @@ namespace Warehouse.Web.Controllers
                             Resource = resources[0],
                             Unit = units[1]
 
+                        }
+                    }
+                },
+                new Receipt
+                {
+                    Id = 3,
+                    Number = 3,
+                    Date = new(2025, 5, 23),
+                    ReceiptItems = new List<ReceiptItem>()
+                    {
+                        new ReceiptItem()
+                        {
+                            Id = 4,
+                            ReceiptId = 3,
+                            ResourceId = 1,
+                            UnitId = 2,
+                            Quantity = 11,
+                            Resource = resources[0],
+                            Unit = units[1]
+                        },
+                        new ReceiptItem()
+                        {
+                            Id = 5,
+                            ReceiptId = 3,
+                            ResourceId = 2,
+                            UnitId = 2,
+                            Quantity = 21,
+                            Resource = resources[1],
+                            Unit = units[1]
                         }
                     }
                 }
