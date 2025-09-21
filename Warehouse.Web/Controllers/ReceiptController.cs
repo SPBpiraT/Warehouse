@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Caching.Memory;
+using System.Globalization;
 using Warehouse.Domain.Entities;
 using Warehouse.Domain.ViewModels.Receipt;
 
@@ -27,10 +28,15 @@ namespace Warehouse.Web.Controllers
             if (receiptsListView.DateRange is not null)
             {
                 var dates = receiptsListView.DateRange.Split(" - ");
-                if (DateOnly.TryParseExact(dates[0], "MM/dd/yyyy", out DateOnly start) &&
-                    DateOnly.TryParseExact(dates[1], "MM/dd/yyyy", out DateOnly end))
+
+                if (DateTime.TryParseExact(dates[0], "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime start) &&
+                    DateTime.TryParseExact(dates[1], "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime end))
                 {
                     receipts = receipts.Where(r => r.Date >= start && r.Date <= end).ToList();
+                }
+                else
+                {
+                    //TODO: Add error handle
                 }
             }
 
@@ -67,12 +73,94 @@ namespace Warehouse.Web.Controllers
                     Text = u.Title,
                     Value = u.Id.ToString()
                 }),
-                DateRange = receiptsListView.DateRange ?? "01/01/2024 - 01/01/2026",
+                DateRange = receiptsListView.DateRange ?? "01-01-2024 - 01-01-2025",
                 SelectedNumbers = receiptsListView.SelectedNumbers ?? new List<int>(),
                 SelectedResources = receiptsListView.SelectedResources ?? new List<int>(),
                 SelectedUnits = receiptsListView.SelectedUnits ?? new List<int>()
             };
             return View(vm);
+        }
+
+        public async Task<IActionResult> Create()
+        {
+            var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+
+            var vm = new CreateReceiptViewModel()
+            {
+                Receipt = new Receipt()
+                {
+                    Number = receipts.Count() + 1,
+                    Date = DateTime.Now, //TODO: Datetime provider
+                    ReceiptItems = new List<ReceiptItem>()
+                },
+                Resources = resources.Select(r => new SelectListItem
+                {
+                    Text = r.Title,
+                    Value = r.Id.ToString()
+                }),
+                Units = units.Select(u => new SelectListItem
+                {
+                    Text = u.Title,
+                    Value = u.Id.ToString()
+                })
+            };
+
+            return View(vm);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([Bind("Receipt")] CreateReceiptViewModel receiptModel)
+        {
+            var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    //TODO: add check for existing entity id if(!_repo.Exist(id))
+
+                    if (receiptModel.Receipt.ReceiptItems != null)
+                    {
+                        foreach (var receiptItem in receiptModel.Receipt.ReceiptItems)
+                        {
+                            receiptItem.Resource = resources.Where(r => r.Id == receiptItem.ResourceId).First();
+                            receiptItem.Unit = units.Where(u => u.Id == receiptItem.UnitId).First();
+                        }
+                    }
+                    else
+                    {
+                        receiptModel.Receipt.ReceiptItems = new List<ReceiptItem>();
+                    }
+
+                    receipts.Add(receiptModel.Receipt);
+
+                    _memoryCache.Set("Receipts", receipts);
+                    TempData["Success"] = "Новое поступление успешно добавлено.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+            catch
+            {
+                ModelState.AddModelError(string.Empty, "Произошла ошибка!");
+            }
+
+            receiptModel.Resources = resources.Select(r => new SelectListItem
+            {
+                Text = r.Title,
+                Value = r.Id.ToString()
+            });
+
+            receiptModel.Units = units.Select(r => new SelectListItem
+            {
+                Text = r.Title,
+                Value = r.Id.ToString()
+            });
+
+            return View(receiptModel);
         }
 
         public async Task<IActionResult> MakeTestData()
