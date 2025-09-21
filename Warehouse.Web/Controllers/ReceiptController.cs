@@ -163,6 +163,24 @@ namespace Warehouse.Web.Controllers
             return View(receiptModel);
         }
 
+        public async Task<IActionResult> Edit(int id)
+        {
+            if (id == null || id == 0)
+            {
+                return NotFound();
+            }
+            //UoW Get
+            var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+            var receipt = receipts.FirstOrDefault(x => x.Id == id);
+
+            if (receipt == null)
+            {
+                return NotFound();
+            }
+            //return View(receipt);
+            return RedirectToAction(nameof(Create));
+        }
+
         public async Task<IActionResult> MakeTestData()
         {
             var resources = new List<Resource>()
