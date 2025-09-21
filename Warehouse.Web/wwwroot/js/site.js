@@ -6,9 +6,21 @@
 $(document).ready(function () {
     $('.selectpicker').selectpicker();
     $('input[id="daterange"]').daterangepicker({
+        "locale": {
+            "format": "DD-MM-YYYY"
+        },
         opens: 'right'
     }, function (start, end, label) {
         console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
+    });
+    $('input[id="datepicker"]').daterangepicker({
+        "locale": {
+            "format": "YYYY-MM-DD"
+        },
+        singleDatePicker: true,
+        showDropdowns: true,
+        minYear: 1970,
+        maxYear: parseInt(moment().format('YYYY'), 10)
     });
 });
 
