@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
+using System.Resources;
 using Warehouse.Domain.Entities;
 using Warehouse.Domain.ViewModels.Receipt;
 
@@ -91,6 +92,7 @@ namespace Warehouse.Web.Controllers
             {
                 Receipt = new Receipt()
                 {
+                    Id = receipts.Count() + 1,
                     Number = receipts.Count() + 1,
                     Date = DateTime.Now, //TODO: Datetime provider
                     ReceiptItems = new List<ReceiptItem>()
@@ -125,10 +127,10 @@ namespace Warehouse.Web.Controllers
 
                     if (receiptModel.Receipt.ReceiptItems != null)
                     {
-                        foreach (var receiptItem in receiptModel.Receipt.ReceiptItems)
+                        foreach (var receiptItem in receiptModel.Receipt.ReceiptItems) //
                         {
-                            receiptItem.Resource = resources.Where(r => r.Id == receiptItem.ResourceId).First();
-                            receiptItem.Unit = units.Where(u => u.Id == receiptItem.UnitId).First();
+                            receiptItem.Resource = resources.SingleOrDefault(r => r.Id == receiptItem.ResourceId); 
+                            receiptItem.Unit = units.SingleOrDefault(u => u.Id == receiptItem.UnitId);
                         }
                     }
                     else
@@ -138,7 +140,7 @@ namespace Warehouse.Web.Controllers
 
                     receipts.Add(receiptModel.Receipt);
 
-                    _memoryCache.Set("Receipts", receipts);
+                    _memoryCache.Set("Receipts", receipts);//
                     TempData["Success"] = "Новое поступление успешно добавлено.";
                     return RedirectToAction(nameof(Index));
                 }
@@ -161,6 +163,100 @@ namespace Warehouse.Web.Controllers
             });
 
             return View(receiptModel);
+        }
+
+        public async Task<IActionResult> Edit(int receiptId)
+        {
+            if (receiptId <= 0)
+            {
+                return NotFound();
+            }
+            //UoW Get
+            var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+
+            var receipt = receipts.SingleOrDefault(x => x.Id == receiptId);
+
+            if (receipt == null)
+            {
+                return NotFound();
+            }
+
+            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+
+            var vm = new EditReceiptViewModel()
+            {
+                Receipt = receipt,
+                Resources = resources.Select(r => new SelectListItem
+                {
+                    Text = r.Title,
+                    Value = r.Id.ToString()
+                }),
+                Units = units.Select(u => new SelectListItem
+                {
+                    Text = u.Title,
+                    Value = u.Id.ToString()
+                })
+            };
+
+            return View(vm);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Edit(int receiptId, [Bind("Receipt")] EditReceiptViewModel receiptModel)
+        {
+            if (receiptId != receiptModel.Receipt.Id || receiptId <= 0)
+            {
+                return NotFound();
+            }
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+                    var rec = receipts.SingleOrDefault(r => r.Id == receiptId);
+                    if (rec is not null)
+                    {
+                        rec.Number = receiptModel.Receipt.Number;
+                        rec.Date = receiptModel.Receipt.Date;
+                        rec.ReceiptItems = receiptModel.Receipt.ReceiptItems;
+
+                        var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+                        var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+
+                        foreach (var item in rec.ReceiptItems)
+                        {
+                            item.Resource = resources.SingleOrDefault(r => r.Id == item.ResourceId);
+                            item.Unit = units.SingleOrDefault(u => u.Id == item.UnitId);
+                        }
+
+                        //_memoryCache.Set("Receipts", receipts);
+                        TempData["Success"] = "Поступление успешно отредактировано.";
+
+                        receiptModel.Receipt = rec;
+                        receiptModel.Resources = resources.Select(r => new SelectListItem
+                        {
+                            Text = r.Title,
+                            Value = r.Id.ToString()
+                        });
+
+                        receiptModel.Units = units.Select(r => new SelectListItem
+                        {
+                            Text = r.Title,
+                            Value = r.Id.ToString()
+                        });
+
+                        return View(receiptModel);
+                    }
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+            TempData["Error"] = "Что-то пошло не так.";
+            return RedirectToAction(nameof(Index));
         }
 
         public async Task<IActionResult> MakeTestData()

@@ -1,4 +1,4 @@
-﻿@model Warehouse.Domain.ViewModels.Receipt.CreateReceiptViewModel
+﻿@model Warehouse.Domain.ViewModels.Receipt.EditReceiptViewModel
 
 @{
     ViewData["Title"] = "Поступление";
@@ -7,11 +7,15 @@
 <div class="container-fluid">
     <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
     <div class="d-flex flex-wrap flex-sm-nowrap">
-        <button type="submit" form="createForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Сохранить</button>
+        <button type="submit" form="editForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Сохранить</button>
+        <form method="post" asp-action="Delete" class="me-2 mb-2">
+            <input type="hidden" asp-for="Receipt.Id"/>
+            <button type="submit" class="btn btn-dark link__hover text-truncate" onclick="return confirm('Вы уверены?')">Удалить</button>
+        </form>
         <a asp-action="Index" class="btn btn-dark link__hover text-truncate mb-2">К списку</a>
     </div>
     <br>
-    <form id="createForm" method="post" asp-action="Create">
+    <form id="editForm" method="post" asp-action="Edit">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <input type="hidden" asp-for="Receipt.Id"/>
         <div class="form-group">
@@ -21,7 +25,7 @@
         </div>
         <div class="form-group">
             <label asp-for="Receipt.Date" class="control-label w-100 text-truncate"></label>
-            <input asp-for="Receipt.Date" type="datetime" id="datepicker" value="@Model.Receipt.Date"/>
+            <input asp-for="Receipt.Date" type="datetime" id="datepicker" value="@Model.Receipt.Date"/>  <!-- TODO: WrongDate -->
             <span asp-validation-for="Receipt.Date" class="text-danger"></span>
         </div>
         <br>
@@ -53,6 +57,8 @@
                             <button type="button" class="btn p-0 remove-row">
                                 <i class="bi bi-trash"></i>
                             </button>
+                            <input type="hidden" asp-for="Receipt.ReceiptItems[i].ReceiptId"/>
+                            <input type="hidden" asp-for="Receipt.ReceiptItems[i].Id"/>
                         </td>
                         <td class="border-end border-dark">
                             <select asp-for="Receipt.ReceiptItems[i].ResourceId"
@@ -86,7 +92,7 @@
 
 @section Scripts {
     @{
-        <partial name="_ValidationScriptsPartial"/>
+        <partial name="_ValidationScriptsPartial" />
         //TODO: Partial script for create/update receipt?
         <script>
             const resources = @Html.Raw(Json.Serialize(Model.Resources));
@@ -102,6 +108,8 @@
                                 <button type="button" class="btn p-0 remove-row">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                <input type="hidden" name="Receipt.ReceiptItems[${rowCount}].ReceiptId"/>
+                                <input type="hidden" name="Receipt.ReceiptItems[${rowCount}].Id"/>
                             </td>
                             <td class="border-end border-dark align-content-center">
                                 <select name="Receipt.ReceiptItems[${rowCount}].ResourceId"

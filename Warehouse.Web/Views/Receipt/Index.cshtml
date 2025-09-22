@@ -61,16 +61,16 @@
                 {
                     <tr>
                         <td class="border-end border-dark align-content-center">
-                            @receipt.Number
+                            <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => receipt.Number)</a>
                         </td>
                         <td class="border-end border-dark align-content-center">
-                            @receipt.Date
+                            <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => receipt.Date)</a>
                         </td>
                         <td class="border-end border-dark p-0">
                             @foreach (var item in receipt.ReceiptItems)
                             {
                                 <div class="border-bottom border-dark ps-2 py-2">
-                                    @item.Resource.Title
+                                    <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => item.Resource.Title)</a>
                                 </div>
                             }
                         </td>
@@ -78,7 +78,7 @@
                             @foreach (var item in receipt.ReceiptItems)
                             {
                                 <div class="border-bottom border-dark ps-2 py-2">
-                                    @item.Unit.Title
+                                    <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => item.Unit.Title)</a>
                                 </div>
                             }
                         </td>
@@ -86,7 +86,7 @@
                             @foreach (var item in receipt.ReceiptItems)
                             {
                                 <div class="border-bottom border-dark ps-2 py-2">
-                                    @item.Quantity
+                                    <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => item.Quantity)</a>
                                 </div>
                             }
                         </td>
