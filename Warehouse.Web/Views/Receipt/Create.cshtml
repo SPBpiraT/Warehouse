@@ -13,6 +13,7 @@
     <br>
     <form id="createForm" method="post" asp-action="Create">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <input type="hidden" asp-for="Receipt.Id"/>
         <div class="form-group">
             <label asp-for="Receipt.Number" class="control-label w-100 text-truncate"></label>
             <input asp-for="Receipt.Number"/>
