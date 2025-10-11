@@ -64,7 +64,7 @@
                             <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => receipt.Number)</a>
                         </td>
                         <td class="border-end border-dark align-content-center">
-                            <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => receipt.Date)</a>
+                            <a asp-controller="Receipt" asp-action="Edit" asp-route-id="@receipt.Id" class="d-block text-decoration-none text-reset">@receipt.Date.ToString("dd-MM-yyyy")</a>
                         </td>
                         <td class="border-end border-dark p-0">
                             @foreach (var item in receipt.ReceiptItems)

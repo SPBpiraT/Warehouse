@@ -21,7 +21,7 @@
         </div>
         <div class="form-group">
             <label asp-for="Receipt.Date" class="control-label w-100 text-truncate"></label>
-            <input asp-for="Receipt.Date" type="datetime" id="datepicker" value="@Model.Receipt.Date"/>
+            <input asp-for="Receipt.Date" type="datetime" id="datepicker" value="@Model.Receipt.Date.ToString("dd-MM-yyyy")"/>
             <span asp-validation-for="Receipt.Date" class="text-danger"></span>
         </div>
         <br>
