@@ -58,7 +58,7 @@
                                 <i class="bi bi-trash"></i>
                             </button>
                             <input type="hidden" asp-for="Receipt.ReceiptItems[i].ReceiptId"/>
-                            <input type="hidden" asp-for="Receipt.ReceiptItems[i].Id"/>
+                            <input type="hidden" asp-for="Receipt.ReceiptItems[i].Id" value="@Model.Receipt.ReceiptItems[i].Id"/>
                         </td>
                         <td class="border-end border-dark">
                             <select asp-for="Receipt.ReceiptItems[i].ResourceId"
@@ -94,6 +94,7 @@
     @{
         <partial name="_ValidationScriptsPartial" />
         //TODO: Partial script for create/update receipt?
+
         <script>
             const resources = @Html.Raw(Json.Serialize(Model.Resources));
             const units = @Html.Raw(Json.Serialize(Model.Units));
@@ -108,8 +109,8 @@
                                 <button type="button" class="btn p-0 remove-row">
                                     <i class="bi bi-trash"></i>
                                 </button>
-                                <input type="hidden" name="Receipt.ReceiptItems[${rowCount}].ReceiptId"/>
-                                <input type="hidden" name="Receipt.ReceiptItems[${rowCount}].Id"/>
+                                <input type="hidden" name="Receipt.ReceiptItems[${rowCount}].ReceiptId" value="@Model.Receipt.Id"/>
+                                <input type="hidden" name="Receipt.ReceiptItems[${rowCount}].Id" value="0"/>
                             </td>
                             <td class="border-end border-dark align-content-center">
                                 <select name="Receipt.ReceiptItems[${rowCount}].ResourceId"
@@ -140,7 +141,22 @@
 
                 $(document).on('click', '.remove-row', function() {
                     $(this).closest('tr').remove();
+                    reindexTable();
                 });
+
+                function reindexTable() {
+                    $('#receiptItemsTable tbody tr').each(function(index) {
+                        $(this).find('input, select').each(function() {
+                            const $field = $(this);
+                            const name = $field.attr('name');
+                            if (name && name.includes('Receipt.ReceiptItems')) {
+                                const newName = name.replace(/Receipt\.ReceiptItems\[\d+\]/, `Receipt.ReceiptItems[${index}]`);
+                                $field.attr('name', newName);
+                            }
+                        });
+                    });
+                    rowCount = $('#receiptItemsTable tbody tr').length;
+                }
 
                 function generateOptions(items) {
                     return items.map(item =>
