@@ -108,7 +108,7 @@ namespace Warehouse.Web.Controllers
                 {
                     Id = receipts.Count() == 0 ? 1 : receipts.Last().Id + 1,
                     Number = receipts.Count() == 0 ? 1 : receipts.Last().Number + 1,
-                    Date = DateTime.Now, //TODO: Datetime provider
+                    Date = DateTime.Now.Date, //TODO: Datetime provider
                     ReceiptItems = new List<ReceiptItem>()
                 },
                 Resources = resources.Select(r => new SelectListItem
