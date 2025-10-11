@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
-using System.Resources;
 using Warehouse.Domain.Entities;
 using Warehouse.Domain.ViewModels.Receipt;
+using System.Text.Json;
 
 namespace Warehouse.Web.Controllers
 {
@@ -24,7 +24,10 @@ namespace Warehouse.Web.Controllers
             var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
             var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
             var receiptsCache = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
-            var receipts = new List<Receipt>(receiptsCache);
+            var receiptItemsCache = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
+
+            var receipts = JsonSerializer.Deserialize<List<Receipt>>(JsonSerializer.Serialize(receiptsCache));
+            var receiptItems = JsonSerializer.Deserialize<List<ReceiptItem>>(JsonSerializer.Serialize(receiptItemsCache));
 
             if (receiptsListView.DateRange is not null)
             {
@@ -54,6 +57,17 @@ namespace Warehouse.Web.Controllers
             if (receiptsListView.SelectedUnits != null && receiptsListView.SelectedUnits.Count() > 0)
             {
                 receipts = receipts.Where(r => r.ReceiptItems.Any(i => receiptsListView.SelectedUnits.Contains(i.UnitId))).ToList();
+            }
+
+            foreach (var receipt in receipts)
+            {
+                receipt.ReceiptItems = receiptItems.Where(x => x.ReceiptId == receipt.Id).ToList();
+
+                foreach (var receiptItem in receipt.ReceiptItems)
+                {
+                    receiptItem.Resource = resources.SingleOrDefault(r => r.Id == receiptItem.ResourceId);
+                    receiptItem.Unit = units.SingleOrDefault(u => u.Id == receiptItem.UnitId);
+                }
             }
 
             var vm = new ReceiptsListViewModel()
@@ -92,8 +106,8 @@ namespace Warehouse.Web.Controllers
             {
                 Receipt = new Receipt()
                 {
-                    Id = receipts.Count() + 1,
-                    Number = receipts.Count() + 1,
+                    Id = receipts.Count() == 0 ? 1 : receipts.Last().Id + 1,
+                    Number = receipts.Count() == 0 ? 1 : receipts.Last().Number + 1,
                     Date = DateTime.Now, //TODO: Datetime provider
                     ReceiptItems = new List<ReceiptItem>()
                 },
@@ -118,6 +132,7 @@ namespace Warehouse.Web.Controllers
             var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
             var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
             var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+            var receiptItems = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
 
             try
             {
@@ -127,20 +142,41 @@ namespace Warehouse.Web.Controllers
 
                     if (receiptModel.Receipt.ReceiptItems != null)
                     {
-                        foreach (var receiptItem in receiptModel.Receipt.ReceiptItems) //
+                        foreach (var item in receiptModel.Receipt.ReceiptItems) //!
                         {
-                            receiptItem.Resource = resources.SingleOrDefault(r => r.Id == receiptItem.ResourceId); 
-                            receiptItem.Unit = units.SingleOrDefault(u => u.Id == receiptItem.UnitId);
+                            var receiptItem = new ReceiptItem()
+                            {
+                                Id = receiptItems.Count() == 0 ? 1 : receiptItems.Last().Id + 1,
+                                ReceiptId = receiptModel.Receipt.Id, //TODO: Add hidden input for ReceiptItem.ReceiptId in Create view
+                                ResourceId = item.ResourceId,
+                                UnitId = item.UnitId,
+                                Quantity = item.Quantity
+                            };
+
+                            item.Id = receiptItem.Id;
+                            item.Resource = resources.FirstOrDefault(r => r.Id == item.ResourceId);
+                            item.Unit = units.FirstOrDefault(u => u.Id == item.UnitId);
+
+                            receiptItems.Add(receiptItem);
                         }
+                        _memoryCache.Set("ReceiptItems", receiptItems); //
                     }
                     else
                     {
                         receiptModel.Receipt.ReceiptItems = new List<ReceiptItem>();
                     }
 
-                    receipts.Add(receiptModel.Receipt);
+                    var receipt = new Receipt()
+                    {
+                        Id = receiptModel.Receipt.Id,
+                        Number = receiptModel.Receipt.Number,
+                        Date = receiptModel.Receipt.Date
+                    };
 
-                    _memoryCache.Set("Receipts", receipts);//
+                    receipts.Add(receipt); 
+
+                    _memoryCache.Set("Receipts", receipts); //
+
                     TempData["Success"] = "Новое поступление успешно добавлено.";
                     return RedirectToAction(nameof(Index));
                 }
@@ -150,6 +186,7 @@ namespace Warehouse.Web.Controllers
                 ModelState.AddModelError(string.Empty, "Произошла ошибка!");
             }
 
+            //
             receiptModel.Resources = resources.Select(r => new SelectListItem
             {
                 Text = r.Title,
@@ -165,47 +202,69 @@ namespace Warehouse.Web.Controllers
             return View(receiptModel);
         }
 
-        public async Task<IActionResult> Edit(int receiptId)
+        public async Task<IActionResult> Edit(int id)
         {
-            if (receiptId <= 0)
+            if (id <= 0)
             {
                 return NotFound();
             }
             //UoW Get
             var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
 
-            var receipt = receipts.SingleOrDefault(x => x.Id == receiptId);
+            var receipt = receipts.SingleOrDefault(x => x.Id == id);
 
             if (receipt == null)
             {
                 return NotFound();
             }
-
-            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-
-            var vm = new EditReceiptViewModel()
+            else
             {
-                Receipt = receipt,
-                Resources = resources.Select(r => new SelectListItem
-                {
-                    Text = r.Title,
-                    Value = r.Id.ToString()
-                }),
-                Units = units.Select(u => new SelectListItem
-                {
-                    Text = u.Title,
-                    Value = u.Id.ToString()
-                })
-            };
+                var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+                var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+                var receiptItemsCache = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
 
-            return View(vm);
+                var receiptItems = JsonSerializer.Deserialize<List<ReceiptItem>>(JsonSerializer.Serialize(receiptItemsCache));
+
+                var receiptModel = new Receipt()
+                {
+                    Id = receipt.Id,
+                    Number = receipt.Number,
+                    Date = receipt.Date,
+                    ReceiptItems = receiptItems.Where(x => x.ReceiptId == receipt.Id).ToList() ?? new List<ReceiptItem>()
+                };
+
+                if (receiptModel.ReceiptItems.Count() != 0)
+                {
+                    foreach (var receiptItem in receiptModel.ReceiptItems)
+                    {
+                        receiptItem.Resource = resources.FirstOrDefault(r => r.Id == receiptItem.ResourceId);
+                        receiptItem.Unit = units.FirstOrDefault(u => u.Id == receiptItem.UnitId);
+                    }
+                }
+
+                var vm = new EditReceiptViewModel()
+                {
+                    Receipt = receiptModel,
+                    Resources = resources.Select(r => new SelectListItem
+                    {
+                        Text = r.Title,
+                        Value = r.Id.ToString()
+                    }),
+                    Units = units.Select(u => new SelectListItem
+                    {
+                        Text = u.Title,
+                        Value = u.Id.ToString()
+                    })
+                };
+
+                return View(vm);
+            }
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int receiptId, [Bind("Receipt")] EditReceiptViewModel receiptModel)
-        {
-            if (receiptId != receiptModel.Receipt.Id || receiptId <= 0)
+        public async Task<IActionResult> Edit(int id, [Bind("Receipt")] EditReceiptViewModel receiptModel)
+        { 
+            if (id != receiptModel.Receipt.Id || id <= 0)
             {
                 return NotFound();
             }
@@ -215,26 +274,69 @@ namespace Warehouse.Web.Controllers
                 try
                 {
                     var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
-                    var rec = receipts.SingleOrDefault(r => r.Id == receiptId);
+                    var rec = receipts.SingleOrDefault(r => r.Id == id);
                     if (rec is not null)
                     {
                         rec.Number = receiptModel.Receipt.Number;
                         rec.Date = receiptModel.Receipt.Date;
-                        rec.ReceiptItems = receiptModel.Receipt.ReceiptItems;
+
+                        _memoryCache.Set("Receipts", receipts);
+                        TempData["Success"] = "Поступление успешно отредактировано.";
 
                         var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
                         var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+                        var receiptItems = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
 
-                        foreach (var item in rec.ReceiptItems)
+                        var oldReceiptItems = receiptModel.Receipt.ReceiptItems?.Where(x => x.Id != 0).ToList() ?? new List<ReceiptItem>();
+                        if (oldReceiptItems.Count() == 0)
                         {
-                            item.Resource = resources.SingleOrDefault(r => r.Id == item.ResourceId);
-                            item.Unit = units.SingleOrDefault(u => u.Id == item.UnitId);
+                            receiptItems.RemoveAll(x => x.ReceiptId == receiptModel.Receipt.Id);
+                        }
+                        else 
+                        {
+                            receiptItems.RemoveAll(x => x.ReceiptId == receiptModel.Receipt.Id && !oldReceiptItems.Any(modelItem => modelItem.Id == x.Id)); 
                         }
 
-                        //_memoryCache.Set("Receipts", receipts);
-                        TempData["Success"] = "Поступление успешно отредактировано.";
+                        if (receiptModel.Receipt.ReceiptItems is not null)
+                        {
 
-                        receiptModel.Receipt = rec;
+                            foreach (var item in receiptModel.Receipt.ReceiptItems) //foreach .IsUpdated
+                            {
+                                if (item.Id == 0)
+                                {
+                                    var receiptItem = new ReceiptItem()
+                                    {
+                                        Id = receiptItems.Count() == 0 ? 1 : receiptItems.Last().Id + 1, //test data
+                                        ReceiptId = receiptModel.Receipt.Id,
+                                        ResourceId = item.ResourceId,
+                                        UnitId = item.UnitId,
+                                        Quantity = item.Quantity
+                                    };
+
+                                    item.Id = receiptItem.Id;
+
+                                    receiptItems.Add(receiptItem);
+                                }
+                                else
+                                {
+                                    var existingItem = receiptItems.SingleOrDefault(ri => ri.Id == item.Id);
+                                    if (existingItem is not null && item.GetHashCode() != existingItem?.GetHashCode()) //
+                                    {
+                                        existingItem.ResourceId = item.ResourceId;
+                                        existingItem.UnitId = item.UnitId;
+                                        existingItem.Quantity = item.Quantity;
+                                    }
+                                }
+
+                                item.Resource = resources.SingleOrDefault(r => r.Id == item.ResourceId);
+                                item.Unit = units.SingleOrDefault(u => u.Id == item.UnitId);
+                            }
+
+                            //foreach .IsDeleted
+
+                            _memoryCache.Set("ReceiptItems", receiptItems);
+                        }
+
                         receiptModel.Resources = resources.Select(r => new SelectListItem
                         {
                             Text = r.Title,
