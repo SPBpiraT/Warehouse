@@ -361,6 +361,51 @@ namespace Warehouse.Web.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            if (id <= 0)
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
+                var receiptItemsCache = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
+
+                var receipt = receipts.FirstOrDefault(x => x.Id == id);
+
+                if (receipt == null)
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    if (receipts.Remove(receipt))
+                    {
+                        receiptItemsCache.RemoveAll(x => x.ReceiptId == receipt.Id);
+
+                        _memoryCache.Set("Receipts", receipts);
+                        _memoryCache.Set("ReceiptItems", receiptItemsCache);
+
+                        TempData["Success"] = "Поступление успешно удалено.";
+                        return RedirectToAction(nameof(Index));
+                    }
+                    else
+                    {
+                        TempData["Error"] = "Что-то пошло не так.";
+                        return RedirectToAction(nameof(Edit), id);
+                    }
+                }
+            }
+            catch
+            {
+                TempData["Error"] = "Что-то пошло не так.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         public async Task<IActionResult> MakeTestData()
         {
             var resources = new List<Resource>()
