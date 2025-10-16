@@ -1,0 +1,118 @@
+﻿@model Warehouse.Domain.ViewModels.Shipment.ShipmentsListViewModel
+
+@{
+    ViewData["Title"] = "Отгрузки";
+}
+<!--
+    TODO: check for useles styles
+-->
+<div class="container-fluid">
+    <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+    <form id="filterForm" method="get">
+        <div class="d-flex flex-column flex-md-row">
+            <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
+                <label class="text-truncate">Период</label>
+                <input asp-for="DateRange" class="form-control w-100" type="text" id="daterange" value="@Model.DateRange" />
+            </div>
+            <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
+                <label asp-for="ShipmentsNumbers" class="text-truncate"></label>
+                <select asp-for="SelectedNumbers" asp-items="Model.ShipmentsNumbers" class="selectpicker w-100" data-placeholder="Выберите"></select>
+            </div>
+            <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
+                <label asp-for="Clients" class="text-truncate"></label>
+                <select asp-for="SelectedClients" asp-items="Model.Clients" class="selectpicker w-100" data-placeholder="Выберите"></select>
+            </div>
+            <div class="d-flex flex-column me-2 mb-2 w-100 limited-width">
+                <label asp-for="Resources" class="text-truncate"></label>
+                <select asp-for="SelectedResources" asp-items="Model.Resources" class="selectpicker w-100" data-placeholder="Выберите"></select>
+            </div>
+            <div class="d-flex flex-column mb-2 w-100 limited-width">
+                <label asp-for="Units" class="text-truncate"></label>
+                <select asp-for="SelectedUnits" asp-items="Model.Units" class="selectpicker w-100" data-placeholder="Выберите"></select>
+            </div>
+        </div>
+    </form>
+    <div class="d-flex flex-wrap flex-sm-nowrap">
+        <button type="submit" form="filterForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Применить фильтр</button>
+        <a asp-action="Create" class="btn btn-dark link__hover text-truncate mb-2">Добавить</a>
+    </div>
+    <br>
+
+    @if (Model.Shipments is not null && Model.Shipments.Count() > 0)
+    {
+        <table class="table table-hover border border-dark">
+            <thead>
+                <tr>
+                    <th class="text-truncate border-end border-dark">
+                        @Html.DisplayName("Номер")
+                    </th>
+                    <th class="text-truncate border-end border-dark">
+                        @Html.DisplayName("Дата")
+                    </th>
+                    <th class="text-truncate border-end border-dark">
+                        @Html.DisplayName("Клиент")
+                    </th>
+                    <th class="text-truncate border-end border-dark">
+                        @Html.DisplayName("Ресурс")
+                    </th>
+                    <th class="text-truncate border-end border-dark">
+                        @Html.DisplayName("Единица измерения")
+                    </th>
+                    <th class="text-truncate">
+                        @Html.DisplayName("Количество")
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var shipment in Model.Shipments)
+                {
+                    <tr>
+                        <td class="border-end border-dark align-content-center">
+                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => shipment.Number)</a>
+                        </td>
+                        <td class="border-end border-dark align-content-center">
+                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@shipment.Date.ToString("dd-MM-yyyy")</a>
+                        </td>
+                        <td class="border-end border-dark align-content-center">
+                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => shipment.Client)</a>
+                        </td>
+                        <td class="border-end border-dark align-content-center">
+                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => shipment.IsSigned)</a>
+                        </td>
+                        <td class="border-end border-dark p-0">
+                            @foreach (var item in shipment.ShipmentItems)
+                            {
+                                <div class="border-bottom border-dark ps-2 py-2">
+                                    <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => item.Resource.Title)</a>
+                                </div>
+                            }
+                        </td>
+                        <td class="border-end border-dark p-0">
+                            @foreach (var item in shipment.ShipmentItems)
+                            {
+                                <div class="border-bottom border-dark ps-2 py-2">
+                                    <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => item.Unit.Title)</a>
+                                </div>
+                            }
+                        </td>
+                        <td class="p-0">
+                            @foreach (var item in shipment.ShipmentItems)
+                            {
+                                <div class="border-bottom border-dark ps-2 py-2">
+                                    <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => item.Quantity)</a>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+    }
+    else
+    {
+        <p class="text-truncate">
+            Ничего не найдено!
+        </p>
+    }
+</div>
