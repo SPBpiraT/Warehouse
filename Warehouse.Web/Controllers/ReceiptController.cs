@@ -147,7 +147,7 @@ namespace Warehouse.Web.Controllers
                             var receiptItem = new ReceiptItem()
                             {
                                 Id = receiptItems.Count() == 0 ? 1 : receiptItems.Last().Id + 1,
-                                ReceiptId = receiptModel.Receipt.Id, //TODO: Add hidden input for ReceiptItem.ReceiptId in Create view
+                                ReceiptId = receiptModel.Receipt.Id,
                                 ResourceId = item.ResourceId,
                                 UnitId = item.UnitId,
                                 Quantity = item.Quantity
