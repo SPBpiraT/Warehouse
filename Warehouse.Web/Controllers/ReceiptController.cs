@@ -133,6 +133,7 @@ namespace Warehouse.Web.Controllers
             var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
             var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
             var receiptItems = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
+            var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
 
             try
             {
@@ -158,7 +159,26 @@ namespace Warehouse.Web.Controllers
                             item.Unit = units.FirstOrDefault(u => u.Id == item.UnitId);
 
                             receiptItems.Add(receiptItem);
+
+                            var balanceCached = balances.SingleOrDefault(x => x.ResourceId == item.ResourceId && x.UnitId == item.UnitId);
+
+                            if (balanceCached != null)
+                            {
+                                balanceCached.Quantity += item.Quantity;
+                            }
+                            else
+                            {
+                                var balance = new Balance()
+                                {
+                                    ResourceId = item.ResourceId,
+                                    UnitId = item.UnitId,
+                                    Quantity = item.Quantity
+                                };
+
+                                balances.Add(balance);
+                            }
                         }
+                        _memoryCache.Set("Balances", balances); //
                         _memoryCache.Set("ReceiptItems", receiptItems); //
                     }
                     else

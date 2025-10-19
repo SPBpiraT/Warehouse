@@ -38,7 +38,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var balance in Model.Balances)
+                @foreach (var balance in Model.Balances) //TODO: check for null
                 {
                     <tr>
                         <td class="text-truncate border-end border-dark">
@@ -62,6 +62,5 @@
         </p>
     }
 
-    <a asp-action="MakeTestData" class="btn btn-dark">Добавить тестовые данные</a>
 </div>
 
