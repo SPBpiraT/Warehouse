@@ -1,0 +1,166 @@
+﻿@model Warehouse.Domain.ViewModels.Shipment.CreateShipmentViewModel
+
+@{
+    ViewData["Title"] = "Отгрузка";
+}
+
+<div class="container-fluid">
+    <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+    <div class="d-flex flex-wrap flex-sm-nowrap">
+        <button type="submit" form="createForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Сохранить</button>
+        <button type="submit" id="saveAndSign" form="createForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Сохранить и подписать</button>
+        <a asp-action="Index" class="btn btn-dark link__hover text-truncate mb-2">К списку</a>
+    </div>
+    <br>
+    <form id="createForm" method="post" asp-action="Create">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <input type="hidden" asp-for="Shipment.Id"/>
+        <div class="form-group">
+            <label asp-for="Shipment.Number" class="control-label w-100 text-truncate"></label>
+            <input asp-for="Shipment.Number"/>
+            <span asp-validation-for="Shipment.Number" class="text-danger"></span>
+        </div>
+        <div class="form-group">
+            <label asp-for="Shipment.Client" class="control-label w-100 text-truncate"></label>
+            <select asp-for="Shipment.Client" asp-items="Model.Clients" id="clientSelect">
+                <option>Выберите клиента</option>
+            </select>
+            <span asp-validation-for="Shipment.Client" class="text-danger"></span>
+        </div>
+        <div class="form-group">
+            <label asp-for="Shipment.Date" class="control-label w-100 text-truncate"></label>
+            <input asp-for="Shipment.Date" type="datetime" id="datepicker" value="@Model.Shipment.Date.ToString("dd-MM-yyyy")"/>
+            <span asp-validation-for="Shipment.Date" class="text-danger"></span>
+        </div>
+        <br>
+        <table class="table border border-dark" id="shipmentItemsTable">
+            <!-- TODO: edit table style, check for useless styles -->
+            <thead>
+                <tr>
+                    <th class="border-end border-dark align-content-center" width="10%">
+                        <button type="button" id="addRow" class="btn p-0">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                    </th>
+                    <th class="border-end border-dark align-content-center" width="22%">
+                        @Html.DisplayName("Ресурс")
+                    </th>
+                    <th class="border-end border-dark align-content-center" width="22%">
+                        @Html.DisplayName("Единица измерения")
+                    </th>
+                    <th class="border-end border-dark align-content-center" width="22%">
+                        @Html.DisplayName("Количество")
+                    </th>
+                    <th class="align-content-center" width="22%">
+                        @Html.DisplayName("Доступно")
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Shipment.ShipmentItems.Count(); i++) // TODO: check for null
+                {
+                    <tr>
+                        <td class="border-end border-dark">
+                            <button type="button" class="btn p-0 remove-row">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                        <td class="border-end border-dark">
+                            <select asp-for="Shipment.ShipmentItems[i].ResourceId"
+                                    asp-items="Model.Resources"
+                                    class="form-select border-0 bg-transparent shadow-none p-0">
+                                <option>Выберите ресурс</option>
+                            </select>
+                            <span asp-validation-for="Shipment.ShipmentItems[i].ResourceId" class="text-danger"></span>
+                        </td>
+                        <td class="border-end border-dark">
+                            <select asp-for="Shipment.ShipmentItems[i].UnitId"
+                                    asp-items="Model.Units"
+                                    class="form-select border-0 bg-transparent shadow-none p-0">
+                                <option>Выберите единицу</option>
+                            </select>
+                            <span asp-validation-for="Shipment.ShipmentItems[i].UnitId" class="text-danger"></span>
+                        </td>
+                        <td class="border-end border-dark">
+                            <input asp-for="Shipment.ShipmentItems[i].Quantity"
+                                   class="form-control border-0 bg-transparent shadow-none p-0"
+                                   type="number"
+                                   min="1" />
+                            <span asp-validation-for="Shipment.ShipmentItems[i].Quantity" class="text-danger"></span> <!--Add validation to JS generated rows-->
+                        </td>
+                        <td class="align-content-center">
+                            <input class="form-control border-0 bg-transparent shadow-none p-0" />
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </form>
+</div>
+
+@section Scripts {
+    @{
+        <partial name="_ValidationScriptsPartial" />
+        //TODO: Partial script for create/update receipt?
+        <script>
+            const resources = @Html.Raw(Json.Serialize(Model.Resources));
+            const units = @Html.Raw(Json.Serialize(Model.Units));
+
+            $(document).ready(function() {
+                let rowCount = @Model.Shipment.ShipmentItems.Count;
+
+                $('#addRow').click(function() {
+                    const newRow = `
+                        <tr>
+                            <td class="border-end border-dark">
+                                <button type="button" class="btn p-0 remove-row">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                            <td class="border-end border-dark align-content-center">
+                                <select name="Shipment.ShipmentItems[${rowCount}].ResourceId"
+                                        class="form-select border-0 bg-transparent shadow-none p-0" required>
+                                    <option>Выберите ресурс</option>
+                                    ${generateOptions(resources)}
+                                </select>
+                            </td>
+                            <td class="border-end border-dark align-content-center">
+                                <select name="Shipment.ShipmentItems[${rowCount}].UnitId"
+                                        class="form-select border-0 bg-transparent shadow-none p-0" required>
+                                    <option>Выберите единицу</option>
+                                    ${generateOptions(units)}
+                                </select>
+                            </td>
+                            <td class="border-end border-dark align-content-center">
+                                <input name="Shipment.ShipmentItems[${rowCount}].Quantity"
+                                       class="form-control border-0 bg-transparent shadow-none p-0"
+                                       type="number"
+                                       min="1"
+                                       required/>
+                            </td>
+                            <td class="align-content-center">
+                                <input class="form-control border-0 bg-transparent shadow-none p-0"/>
+                            </td>
+                        </tr>`;
+
+                    $('#shipmentItemsTable tbody').append(newRow);
+                    rowCount++;
+                });
+
+                function generateOptions(items) {
+                    return items.map(item =>
+                        `<option value="${item.value}">${item.text}</option>`
+                    ).join('');
+                }
+
+                $('#saveAndSign').click(function() {
+                    @Model.Shipment.IsSigned = true;
+                });
+
+                $(document).on('click', '.remove-row', function() {
+                    $(this).closest('tr').remove();
+                });
+            });
+        </script>
+    }
+}

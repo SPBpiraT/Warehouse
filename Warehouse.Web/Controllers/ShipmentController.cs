@@ -103,5 +103,42 @@ namespace Warehouse.Web.Controllers
             };
             return View(vm);
         }
+
+        public async Task<IActionResult> Create()
+        {
+            var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
+            var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(u => u.IsActive) ?? new List<Client>();
+            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+            //get balances
+
+            var vm = new CreateShipmentViewModel()
+            {
+                Shipment = new Shipment()
+                {
+                    Id = shipments.Count() == 0 ? 1 : shipments.Last().Id + 1,
+                    Number = shipments.Count() == 0 ? 1 : shipments.Last().Number + 1,
+                    Date = DateTime.Now.Date, //TODO: Datetime provider
+                    ShipmentItems = new List<ShipmentItem>()
+                },
+                Clients = clients.Select(c => new SelectListItem
+                {
+                    Text = c.Title,
+                    Value = c.Id.ToString()
+                }),
+                Resources = resources.Select(r => new SelectListItem
+                {
+                    Text = r.Title,
+                    Value = r.Id.ToString()
+                }),
+                Units = units.Select(u => new SelectListItem
+                {
+                    Text = u.Title,
+                    Value = u.Id.ToString()
+                })
+            };
+
+            return View(vm);
+        }
     }
 }
