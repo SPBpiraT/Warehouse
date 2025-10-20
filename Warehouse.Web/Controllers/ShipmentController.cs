@@ -4,7 +4,6 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
 using System.Text.Json;
 using Warehouse.Domain.Entities;
-using Warehouse.Domain.ViewModels.Receipt;
 using Warehouse.Domain.ViewModels.Shipment;
 
 namespace Warehouse.Web.Controllers
@@ -110,7 +109,6 @@ namespace Warehouse.Web.Controllers
             var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(u => u.IsActive) ?? new List<Client>();
             var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
             var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-            //get balances
 
             var vm = new CreateShipmentViewModel()
             {
