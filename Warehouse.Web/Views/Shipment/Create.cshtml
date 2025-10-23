@@ -15,14 +15,15 @@
     <form id="createForm" method="post" asp-action="Create">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
         <input type="hidden" asp-for="Shipment.Id"/>
+        <input type="hidden" asp-for="Shipment.IsSigned" id="IsSigned"/>
         <div class="form-group">
             <label asp-for="Shipment.Number" class="control-label w-100 text-truncate"></label>
             <input asp-for="Shipment.Number"/>
             <span asp-validation-for="Shipment.Number" class="text-danger"></span>
         </div>
         <div class="form-group">
-            <label asp-for="Shipment.Client" class="control-label w-100 text-truncate"></label>
-            <select asp-for="Shipment.Client" asp-items="Model.Clients" id="clientSelect">
+            <label asp-for="Shipment.ClientId" class="control-label w-100 text-truncate"></label>
+            <select asp-for="Shipment.ClientId" asp-items="Model.Clients" id="clientSelect">
                 <option>Выберите клиента</option>
             </select>
             <span asp-validation-for="Shipment.Client" class="text-danger"></span>
@@ -157,7 +158,7 @@
                 }
 
                 $('#saveAndSign').click(function() {
-                    @Model.Shipment.IsSigned = true;
+                    $('#IsSigned').val('true');
                 });
 
                 $(document).on('click', '.remove-row', function() {

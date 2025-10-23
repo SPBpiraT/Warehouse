@@ -282,7 +282,7 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int id, [Bind("Receipt")] EditReceiptViewModel receiptModel)
+        public async Task<IActionResult> Edit(int id, [Bind("Receipt")] EditReceiptViewModel receiptModel) //new items don't add balances
         { 
             if (id != receiptModel.Receipt.Id || id <= 0)
             {

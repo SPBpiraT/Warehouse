@@ -53,6 +53,9 @@
                         @Html.DisplayName("Клиент")
                     </th>
                     <th class="text-truncate border-end border-dark">
+                        @Html.DisplayName("Статус")
+                    </th>
+                    <th class="text-truncate border-end border-dark">
                         @Html.DisplayName("Ресурс")
                     </th>
                     <th class="text-truncate border-end border-dark">
@@ -74,10 +77,10 @@
                             <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@shipment.Date.ToString("dd-MM-yyyy")</a>
                         </td>
                         <td class="border-end border-dark align-content-center">
-                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => shipment.Client)</a>
+                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => shipment.Client.Title)</a>
                         </td>
                         <td class="border-end border-dark align-content-center">
-                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@Html.DisplayFor(modelItem => shipment.IsSigned)</a>
+                            <a asp-controller="Shipment" asp-action="Edit" asp-route-id="@shipment.Id" class="d-block text-decoration-none text-reset">@(shipment.IsSigned ? "Подписан" : "Не подписан")</a>
                         </td>
                         <td class="border-end border-dark p-0">
                             @foreach (var item in shipment.ShipmentItems)
