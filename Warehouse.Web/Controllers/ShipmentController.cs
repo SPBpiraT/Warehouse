@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
 using System.Text.Json;
 using Warehouse.Domain.Entities;
+using Warehouse.Domain.ViewModels.Receipt;
 using Warehouse.Domain.ViewModels.Shipment;
 
 namespace Warehouse.Web.Controllers
@@ -50,6 +51,7 @@ namespace Warehouse.Web.Controllers
                 shipments = shipments.Where(r => shipmentsListView.SelectedNumbers.Contains(r.Id)).ToList();
             }
 
+            //TODO: Add clients filter
             if (shipmentsListView.SelectedResources != null && shipmentsListView.SelectedResources.Count() > 0)
             {
                 shipments = shipments.Where(r => r.ShipmentItems.Any(i => shipmentsListView.SelectedResources.Contains(i.ResourceId))).ToList();
@@ -62,6 +64,7 @@ namespace Warehouse.Web.Controllers
 
             foreach (var shipment in shipments)
             {
+                shipment.Client = clients.SingleOrDefault(c => c.Id == shipment.ClientId);
                 shipment.ShipmentItems = shipmentItems.Where(x => x.ShipmentId == shipment.Id).ToList();
 
                 foreach (var shipmentItem in shipment.ShipmentItems)
@@ -137,6 +140,102 @@ namespace Warehouse.Web.Controllers
             };
 
             return View(vm);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([Bind("Shipment")] CreateShipmentViewModel shipmentModel)
+        {
+            var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
+            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+            var shipmentItems = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems") ?? new List<ShipmentItem>();
+            var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
+
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    //TODO: add check for existing entity id if(!_repo.Exist(id))
+
+                    if (shipmentModel.Shipment.ShipmentItems != null)
+                    {
+                        foreach (var item in shipmentModel.Shipment.ShipmentItems) //!
+                        {
+                            var shipmentItem = new ShipmentItem()
+                            {
+                                Id = shipmentItems.Count() == 0 ? 1 : shipmentItems.Last().Id + 1,
+                                ShipmentId = shipmentModel.Shipment.Id,
+                                ResourceId = item.ResourceId,
+                                UnitId = item.UnitId,
+                                Quantity = item.Quantity
+                            };
+
+                            item.Id = shipmentItem.Id;
+                            item.Resource = resources.FirstOrDefault(r => r.Id == item.ResourceId);
+                            item.Unit = units.FirstOrDefault(u => u.Id == item.UnitId);
+
+                            shipmentItems.Add(shipmentItem);
+
+                            if (shipmentModel.Shipment.IsSigned == true)
+                            {
+                                var balanceCached = balances.SingleOrDefault(x => x.ResourceId == item.ResourceId && x.UnitId == item.UnitId);
+
+                                if (balanceCached != null)
+                                {
+                                    balanceCached.Quantity -= item.Quantity;
+                                }
+                                else
+                                {
+                                    TempData["Error"] = "Что-то пошло не так.";
+                                    return RedirectToAction(nameof(Index));
+                                    //Hanlde error
+                                }
+                            }
+                        }
+                        _memoryCache.Set("Balances", balances); //
+                        _memoryCache.Set("ShipmentItems", shipmentItems); //
+                    }
+                    else
+                    {
+                        shipmentModel.Shipment.ShipmentItems = new List<ShipmentItem>();
+                    }
+
+                    var shipment = new Shipment()
+                    {
+                        Id = shipmentModel.Shipment.Id,
+                        Number = shipmentModel.Shipment.Number,
+                        Date = shipmentModel.Shipment.Date,
+                        ClientId = shipmentModel.Shipment.ClientId,
+                        IsSigned = shipmentModel.Shipment.IsSigned
+                    };
+
+                    shipments.Add(shipment);
+
+                    _memoryCache.Set("Shipments", shipments); //
+
+                    TempData["Success"] = "Новая отгрузка успешно добавлена.";
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+            catch
+            {
+                ModelState.AddModelError(string.Empty, "Произошла ошибка!");
+            }
+
+            //
+            shipmentModel.Resources = resources.Select(r => new SelectListItem
+            {
+                Text = r.Title,
+                Value = r.Id.ToString()
+            });
+
+            shipmentModel.Units = units.Select(r => new SelectListItem
+            {
+                Text = r.Title,
+                Value = r.Id.ToString()
+            });
+
+            return View(shipmentModel);
         }
     }
 }
