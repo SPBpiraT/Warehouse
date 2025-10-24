@@ -170,6 +170,7 @@ namespace Warehouse.Web.Controllers
                             {
                                 var balance = new Balance()
                                 {
+                                    Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //test data
                                     ResourceId = item.ResourceId,
                                     UnitId = item.UnitId,
                                     Quantity = item.Quantity
@@ -306,20 +307,24 @@ namespace Warehouse.Web.Controllers
                         var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
                         var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
                         var receiptItems = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
+                        var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
 
                         var oldReceiptItems = receiptModel.Receipt.ReceiptItems?.Where(x => x.Id != 0).ToList() ?? new List<ReceiptItem>();
-                        if (oldReceiptItems.Count() == 0)
+
+                        var deletedReceitpItems = receiptItems
+                            .Where(x => x.ReceiptId == receiptModel.Receipt.Id && !oldReceiptItems.Any(modelItem => modelItem.Id == x.Id))
+                            .ToList() ?? new List<ReceiptItem>();
+
+                        foreach (var item in deletedReceitpItems)
                         {
-                            receiptItems.RemoveAll(x => x.ReceiptId == receiptModel.Receipt.Id);
-                        }
-                        else 
-                        {
-                            receiptItems.RemoveAll(x => x.ReceiptId == receiptModel.Receipt.Id && !oldReceiptItems.Any(modelItem => modelItem.Id == x.Id)); 
+                            var balance = balances.SingleOrDefault(x => x.ResourceId == item.ResourceId && x.UnitId == item.UnitId);
+                            balance.Quantity -= item.Quantity;
+                            if (balance.Quantity <= 0) balances.Remove(balance);
+                            receiptItems.Remove(item);
                         }
 
                         if (receiptModel.Receipt.ReceiptItems is not null)
                         {
-
                             foreach (var item in receiptModel.Receipt.ReceiptItems) //foreach .IsUpdated
                             {
                                 if (item.Id == 0)
@@ -336,15 +341,73 @@ namespace Warehouse.Web.Controllers
                                     item.Id = receiptItem.Id;
 
                                     receiptItems.Add(receiptItem);
+
+                                    var balanceCached = balances.SingleOrDefault(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
+
+                                    if (balanceCached != null)
+                                    {
+                                        balanceCached.Quantity += item.Quantity;
+                                    }
+                                    else
+                                    {
+                                        var balance = new Balance()
+                                        {
+                                            Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //test data
+                                            ResourceId = item.ResourceId,
+                                            UnitId = item.UnitId,
+                                            Quantity = item.Quantity
+                                        };
+
+                                        balances.Add(balance);
+                                    }
+
                                 }
                                 else
                                 {
                                     var existingItem = receiptItems.SingleOrDefault(ri => ri.Id == item.Id);
+
                                     if (existingItem is not null && item.GetHashCode() != existingItem?.GetHashCode()) //
                                     {
-                                        existingItem.ResourceId = item.ResourceId;
-                                        existingItem.UnitId = item.UnitId;
-                                        existingItem.Quantity = item.Quantity;
+                                        var existingBalance = balances.SingleOrDefault(b => b.ResourceId == existingItem.ResourceId && b.UnitId == existingItem.UnitId);
+
+                                        if (item.ResourceId != existingItem.ResourceId || item.UnitId != existingItem.UnitId)
+                                        {
+                                            existingItem.ResourceId = item.ResourceId;
+                                            existingItem.UnitId = item.UnitId;
+
+                                            existingBalance.Quantity -= existingItem.Quantity;
+
+                                            if (existingBalance.Quantity <= 0) balances.Remove(existingBalance);
+
+                                            var editedItemBalance = balances.SingleOrDefault(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
+
+                                            if (editedItemBalance != null)
+                                            {
+                                                editedItemBalance.Quantity += item.Quantity;
+                                            }
+                                            else
+                                            {
+                                                var balance = new Balance()
+                                                {
+                                                    Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //test data
+                                                    ResourceId = item.ResourceId,
+                                                    UnitId = item.UnitId,
+                                                    Quantity = item.Quantity
+                                                };
+
+                                                balances.Add(balance);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (item.Quantity != existingItem.Quantity)
+                                            {
+                                                existingItem.Quantity = item.Quantity;
+
+                                                existingBalance.Quantity -= existingItem.Quantity;
+                                                existingBalance.Quantity += item.Quantity;
+                                            }
+                                        }
                                     }
                                 }
 
@@ -353,7 +416,7 @@ namespace Warehouse.Web.Controllers
                             }
 
                             //foreach .IsDeleted
-
+                            _memoryCache.Set("Balances", balances);
                             _memoryCache.Set("ReceiptItems", receiptItems);
                         }
 
@@ -405,6 +468,7 @@ namespace Warehouse.Web.Controllers
                     if (receipts.Remove(receipt))
                     {
                         receiptItemsCache.RemoveAll(x => x.ReceiptId == receipt.Id);
+                        //update balances
 
                         _memoryCache.Set("Receipts", receipts);
                         _memoryCache.Set("ReceiptItems", receiptItemsCache);
