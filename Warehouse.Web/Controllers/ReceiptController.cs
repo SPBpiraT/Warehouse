@@ -456,6 +456,7 @@ namespace Warehouse.Web.Controllers
             {
                 var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
                 var receiptItemsCache = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
+                var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
 
                 var receipt = receipts.FirstOrDefault(x => x.Id == id);
 
@@ -467,11 +468,19 @@ namespace Warehouse.Web.Controllers
                 {
                     if (receipts.Remove(receipt))
                     {
-                        receiptItemsCache.RemoveAll(x => x.ReceiptId == receipt.Id);
-                        //update balances
+                        var receiptItems = receiptItemsCache.Where(ri => ri.ReceiptId == receipt.Id).ToList();
+
+                        foreach (var receiptItem in receiptItems)
+                        {
+                            var balance = balances.SingleOrDefault(b => b.ResourceId == receiptItem.ResourceId && b.UnitId == receiptItem.UnitId);
+                            balance.Quantity -= receiptItem.Quantity; //TODO: handle if an arithmetic overflow occurs
+                            if (balance.Quantity <= 0) balances.Remove(balance);
+                            receiptItemsCache.Remove(receiptItem);
+                        }
 
                         _memoryCache.Set("Receipts", receipts);
                         _memoryCache.Set("ReceiptItems", receiptItemsCache);
+                        _memoryCache.Set("Balances", balances);
 
                         TempData["Success"] = "Поступление успешно удалено.";
                         return RedirectToAction(nameof(Index));
