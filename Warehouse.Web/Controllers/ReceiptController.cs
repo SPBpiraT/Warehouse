@@ -456,6 +456,7 @@ namespace Warehouse.Web.Controllers
             {
                 var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
                 var receiptItemsCache = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
+                var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
 
                 var receipt = receipts.FirstOrDefault(x => x.Id == id);
 
@@ -467,11 +468,19 @@ namespace Warehouse.Web.Controllers
                 {
                     if (receipts.Remove(receipt))
                     {
-                        receiptItemsCache.RemoveAll(x => x.ReceiptId == receipt.Id);
-                        //update balances
+                        var receiptItems = receiptItemsCache.Where(ri => ri.ReceiptId == receipt.Id).ToList();
+
+                        foreach (var receiptItem in receiptItems)
+                        {
+                            var balance = balances.SingleOrDefault(b => b.ResourceId == receiptItem.ResourceId && b.UnitId == receiptItem.UnitId);
+                            balance.Quantity -= receiptItem.Quantity; //TODO: handle if an arithmetic overflow occurs
+                            if (balance.Quantity <= 0) balances.Remove(balance);
+                            receiptItemsCache.Remove(receiptItem);
+                        }
 
                         _memoryCache.Set("Receipts", receipts);
                         _memoryCache.Set("ReceiptItems", receiptItemsCache);
+                        _memoryCache.Set("Balances", balances);
 
                         TempData["Success"] = "Поступление успешно удалено.";
                         return RedirectToAction(nameof(Index));
@@ -488,129 +497,6 @@ namespace Warehouse.Web.Controllers
                 TempData["Error"] = "Что-то пошло не так.";
                 return RedirectToAction(nameof(Index));
             }
-        }
-
-        public async Task<IActionResult> MakeTestData()
-        {
-            var resources = new List<Resource>()
-            {
-                new Resource()
-                {
-                    Id = 1,
-                    Title = "Banana",
-                    IsActive = true
-                },
-                new Resource()
-                {
-                    Id = 2,
-                    Title = "Apple",
-                    IsActive = true
-                }
-            };
-
-            var units = new List<Unit>()
-            {
-                new Unit()
-                {
-                    Id = 1,
-                    Title = "kg",
-                    IsActive = true
-                },
-                new Unit()
-                {
-                    Id = 2,
-                    Title = "box",
-                    IsActive = true
-                }
-            };
-
-            var receipts = new List<Receipt>()
-            {
-                new Receipt
-                {
-                    Id = 1,
-                    Number = 1,
-                    Date = new(2025, 5, 20),
-                    ReceiptItems = new List<ReceiptItem>()
-                    {
-                        new ReceiptItem()
-                        {
-                            Id = 1,
-                            ReceiptId = 1,
-                            ResourceId = 1,
-                            UnitId = 1,
-                            Quantity = 1,
-                            Resource = resources[0],
-                            Unit = units[0]
-                        },
-                        new ReceiptItem()
-                        {
-                            Id = 2,
-                            ReceiptId = 1,
-                            ResourceId = 2,
-                            UnitId = 2,
-                            Quantity = 2,
-                            Resource = resources[1],
-                            Unit = units[1]
-                        }
-                    }
-                },
-                new Receipt
-                {
-                    Id = 2,
-                    Number = 2,
-                    Date = new(2025, 5, 27),
-                    ReceiptItems = new List<ReceiptItem>()
-                    {
-                        new ReceiptItem()
-                        {
-                            Id = 3,
-                            ReceiptId = 2,
-                            ResourceId = 1,
-                            UnitId = 2,
-                            Quantity = 3,
-                            Resource = resources[0],
-                            Unit = units[1]
-
-                        }
-                    }
-                },
-                new Receipt
-                {
-                    Id = 3,
-                    Number = 3,
-                    Date = new(2025, 5, 23),
-                    ReceiptItems = new List<ReceiptItem>()
-                    {
-                        new ReceiptItem()
-                        {
-                            Id = 4,
-                            ReceiptId = 3,
-                            ResourceId = 1,
-                            UnitId = 2,
-                            Quantity = 11,
-                            Resource = resources[0],
-                            Unit = units[1]
-                        },
-                        new ReceiptItem()
-                        {
-                            Id = 5,
-                            ReceiptId = 3,
-                            ResourceId = 2,
-                            UnitId = 2,
-                            Quantity = 21,
-                            Resource = resources[1],
-                            Unit = units[1]
-                        }
-                    }
-                }
-            };
-          
-            _memoryCache.Set("Receipts", receipts);
-            _memoryCache.Set("Resources", resources);
-            _memoryCache.Set("Units", units);
-
-            return RedirectToAction(nameof(Index));
         }
     }
 }
