@@ -6,7 +6,7 @@ namespace Warehouse.Domain.Entities
     {
         public int Id { get; set; }
 
-        [Display(Name = "Наименование")]
+        [Display(Name = "Клиент")]
         public string Title { get; set; }
 
         [Display(Name = "Адрес")]
