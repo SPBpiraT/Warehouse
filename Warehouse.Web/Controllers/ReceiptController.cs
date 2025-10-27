@@ -49,14 +49,30 @@ namespace Warehouse.Web.Controllers
                 receipts = receipts.Where(r => receiptsListView.SelectedNumbers.Contains(r.Id)).ToList();
             }
 
-            if (receiptsListView.SelectedResources != null && receiptsListView.SelectedResources.Count() > 0)
+            if (receiptsListView.SelectedResources != null && receiptsListView.SelectedResources.Any())
             {
-                receipts = receipts.Where(r => r.ReceiptItems.Any(i => receiptsListView.SelectedResources.Contains(i.ResourceId))).ToList();             
+                var filteredReceiptIds = receiptItems
+                    .Where(ri => receiptsListView.SelectedResources.Contains(ri.ResourceId))
+                    .Select(ri => ri.ReceiptId)
+                    .Distinct()
+                    .ToList();
+
+                receipts = receipts
+                    .Where(r => filteredReceiptIds.Contains(r.Id))
+                    .ToList();
             }
 
-            if (receiptsListView.SelectedUnits != null && receiptsListView.SelectedUnits.Count() > 0)
+            if (receiptsListView.SelectedUnits != null && receiptsListView.SelectedUnits.Any())
             {
-                receipts = receipts.Where(r => r.ReceiptItems.Any(i => receiptsListView.SelectedUnits.Contains(i.UnitId))).ToList();
+                var filteredReceiptIds = receiptItems
+                    .Where(ri => receiptsListView.SelectedUnits.Contains(ri.UnitId))
+                    .Select(ri => ri.ReceiptId)
+                    .Distinct()
+                    .ToList();
+
+                receipts = receipts
+                    .Where(r => filteredReceiptIds.Contains(r.Id))
+                    .ToList();
             }
 
             foreach (var receipt in receipts)
