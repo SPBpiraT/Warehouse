@@ -46,24 +46,40 @@ namespace Warehouse.Web.Controllers
                 }
             }
 
-            if (shipmentsListView.SelectedNumbers != null && shipmentsListView.SelectedNumbers.Count() > 0)
+            if (shipmentsListView.SelectedNumbers != null && shipmentsListView.SelectedNumbers.Any())
             {
                 shipments = shipments.Where(r => shipmentsListView.SelectedNumbers.Contains(r.Id)).ToList();
             }
 
-            if (shipmentsListView.SelectedClients != null && shipmentsListView.SelectedClients.Count() > 0)
+            if (shipmentsListView.SelectedClients != null && shipmentsListView.SelectedClients.Any())
             {
                 shipments = shipments.Where(r => shipmentsListView.SelectedClients.Contains(r.Id)).ToList();
             }
 
-            if (shipmentsListView.SelectedResources != null && shipmentsListView.SelectedResources.Count() > 0)
+            if (shipmentsListView.SelectedResources != null && shipmentsListView.SelectedResources.Any())
             {
-                shipments = shipments.Where(r => r.ShipmentItems.Any(i => shipmentsListView.SelectedResources.Contains(i.ResourceId))).ToList();
+                var filteredShipmentIds = shipmentItems
+                    .Where(si => shipmentsListView.SelectedResources.Contains(si.ResourceId))
+                    .Select(si => si.ShipmentId)
+                    .Distinct()
+                    .ToList();
+
+                shipments = shipments
+                    .Where(s => filteredShipmentIds.Contains(s.Id))
+                    .ToList();
             }
 
-            if (shipmentsListView.SelectedUnits != null && shipmentsListView.SelectedUnits.Count() > 0)
+            if (shipmentsListView.SelectedUnits != null && shipmentsListView.SelectedUnits.Any())
             {
-                shipments = shipments.Where(r => r.ShipmentItems.Any(i => shipmentsListView.SelectedUnits.Contains(i.UnitId))).ToList();
+                var filteredShipmentIds = shipmentItems
+                    .Where(si => shipmentsListView.SelectedUnits.Contains(si.UnitId))
+                    .Select(si => si.ShipmentId)
+                    .Distinct()
+                    .ToList();
+
+                shipments = shipments
+                    .Where(s => filteredShipmentIds.Contains(s.Id))
+                    .ToList();
             }
 
             foreach (var shipment in shipments)
