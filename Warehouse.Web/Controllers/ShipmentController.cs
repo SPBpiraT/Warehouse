@@ -51,7 +51,11 @@ namespace Warehouse.Web.Controllers
                 shipments = shipments.Where(r => shipmentsListView.SelectedNumbers.Contains(r.Id)).ToList();
             }
 
-            //TODO: Add clients filter
+            if (shipmentsListView.SelectedClients != null && shipmentsListView.SelectedClients.Count() > 0)
+            {
+                shipments = shipments.Where(r => shipmentsListView.SelectedClients.Contains(r.Id)).ToList();
+            }
+
             if (shipmentsListView.SelectedResources != null && shipmentsListView.SelectedResources.Count() > 0)
             {
                 shipments = shipments.Where(r => r.ShipmentItems.Any(i => shipmentsListView.SelectedResources.Contains(i.ResourceId))).ToList();
