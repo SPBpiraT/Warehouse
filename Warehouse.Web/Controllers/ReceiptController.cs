@@ -44,7 +44,7 @@ namespace Warehouse.Web.Controllers
                 }
             }
 
-            if (receiptsListView.SelectedNumbers != null && receiptsListView.SelectedNumbers.Count() > 0)
+            if (receiptsListView.SelectedNumbers != null && receiptsListView.SelectedNumbers.Any())
             {
                 receipts = receipts.Where(r => receiptsListView.SelectedNumbers.Contains(r.Id)).ToList();
             }
@@ -480,37 +480,60 @@ namespace Warehouse.Web.Controllers
                 {
                     return NotFound();
                 }
+
+                var relatedReceiptItems = receiptItemsCache.Where(ri => ri.ReceiptId == receipt.Id).ToList();
+
+                var balanceChecks = relatedReceiptItems
+                    .Select(ri => new
+                    {
+                        ReceiptItem = ri,
+                        Balance = balances.FirstOrDefault(b => b.ResourceId == ri.ResourceId && b.UnitId == ri.UnitId)
+                    })
+                    .ToList();
+
+                var insufficientBalance = balanceChecks.FirstOrDefault(x =>
+                    x.Balance == null || x.Balance.Quantity < x.ReceiptItem.Quantity);
+
+                if (insufficientBalance != null)
+                {
+                    TempData["Error"] = "Невозможно удалить поступление: недостаточный баланс.";
+                    return RedirectToAction(nameof(Edit), new { id });
+                }
+
+                if (receipts.Remove(receipt))
+                {
+                    foreach (var check in balanceChecks)
+                    {
+                        var balance = check.Balance;
+                        balance.Quantity -= check.ReceiptItem.Quantity;
+
+                        if (balance.Quantity == 0)
+                            balances.Remove(balance);
+
+                        receiptItemsCache.Remove(check.ReceiptItem);
+                    }
+
+                    _memoryCache.Set("Receipts", receipts);
+                    _memoryCache.Set("ReceiptItems", receiptItemsCache);
+                    _memoryCache.Set("Balances", balances);
+
+                    TempData["Success"] = "Поступление успешно удалено.";
+                    return RedirectToAction(nameof(Index));
+                }
                 else
                 {
-                    if (receipts.Remove(receipt))
-                    {
-                        var receiptItems = receiptItemsCache.Where(ri => ri.ReceiptId == receipt.Id).ToList();
-
-                        foreach (var receiptItem in receiptItems)
-                        {
-                            var balance = balances.SingleOrDefault(b => b.ResourceId == receiptItem.ResourceId && b.UnitId == receiptItem.UnitId);
-                            balance.Quantity -= receiptItem.Quantity; //TODO: handle if an arithmetic overflow occurs
-                            if (balance.Quantity <= 0) balances.Remove(balance);
-                            receiptItemsCache.Remove(receiptItem);
-                        }
-
-                        _memoryCache.Set("Receipts", receipts);
-                        _memoryCache.Set("ReceiptItems", receiptItemsCache);
-                        _memoryCache.Set("Balances", balances);
-
-                        TempData["Success"] = "Поступление успешно удалено.";
-                        return RedirectToAction(nameof(Index));
-                    }
-                    else
-                    {
-                        TempData["Error"] = "Что-то пошло не так.";
-                        return RedirectToAction(nameof(Edit), id);
-                    }
+                    TempData["Error"] = "Что-то пошло не так.";
+                    return RedirectToAction(nameof(Edit), new { id });
                 }
             }
-            catch
+            catch (InvalidOperationException ex)
             {
-                TempData["Error"] = "Что-то пошло не так.";
+                TempData["Error"] = "Обнаружены дублирующиеся балансы. Обратитесь к администратору.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch(Exception ex)
+            {
+                TempData["Error"] = $"Что-то пошло не так. Ошибка: {ex.Message}";
                 return RedirectToAction(nameof(Index));
             }
         }
