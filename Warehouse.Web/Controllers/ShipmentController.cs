@@ -165,20 +165,64 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([Bind("Shipment")] CreateShipmentViewModel shipmentModel)
         {
-            var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
-            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-            var shipmentItems = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems") ?? new List<ShipmentItem>();
-            var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
-
             try
             {
                 if (ModelState.IsValid)
                 {
-                    //TODO: add check for existing entity id if(!_repo.Exist(id))
+                    var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
+                    var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+                    var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+                    var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(u => u.IsActive) ?? new List<Client>();
+                    var shipmentItems = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems") ?? new List<ShipmentItem>();
+                    var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
+
+                    shipmentModel.Clients = clients.Select(c => new SelectListItem
+                    {
+                        Text = c.Title,
+                        Value = c.Id.ToString()
+                    });
+
+                    shipmentModel.Resources = resources.Select(r => new SelectListItem
+                    {
+                        Text = r.Title,
+                        Value = r.Id.ToString()
+                    });
+
+                    shipmentModel.Units = units.Select(r => new SelectListItem
+                    {
+                        Text = r.Title,
+                        Value = r.Id.ToString()
+                    });
 
                     if (shipmentModel.Shipment.ShipmentItems != null)
                     {
+                        if (shipmentModel.Shipment.IsSigned)
+                        {
+                            var balanceChecks = shipmentModel.Shipment.ShipmentItems
+                                .Select(si => new
+                                {
+                                    ModelShipmentItem = si,
+                                    Balance = balances.SingleOrDefault(b => b.ResourceId == si.ResourceId && b.UnitId == si.UnitId),
+                                    BalanceInfo = $"ResourceId: {si.ResourceId}, UnitId: {si.UnitId}"
+                                });
+
+                            var insufficientBalance = balanceChecks.FirstOrDefault(bc => 
+                                bc.Balance is null || bc.Balance.Quantity < bc.ModelShipmentItem.Quantity);
+
+                            if (insufficientBalance != null)
+                            {
+                                TempData["Error"] = $"Невозможно подписать отгрузку: недостаточный баланс. {insufficientBalance.BalanceInfo}";
+
+                                foreach (var item in shipmentModel.Shipment.ShipmentItems)
+                                {
+                                    item.Resource = resources.FirstOrDefault(r => r.Id == item.ResourceId);
+                                    item.Unit = units.FirstOrDefault(u => u.Id == item.UnitId);
+                                }
+
+                                return View(shipmentModel); //TODO: Add awailable balance to view for each row on load?
+                            }
+                        }
+
                         foreach (var item in shipmentModel.Shipment.ShipmentItems) //!
                         {
                             var shipmentItem = new ShipmentItem()
@@ -196,13 +240,14 @@ namespace Warehouse.Web.Controllers
 
                             shipmentItems.Add(shipmentItem);
 
-                            if (shipmentModel.Shipment.IsSigned == true)
+                            if (shipmentModel.Shipment.IsSigned)
                             {
-                                var balanceCached = balances.SingleOrDefault(x => x.ResourceId == item.ResourceId && x.UnitId == item.UnitId);
+                                var balance = balances.SingleOrDefault(x => x.ResourceId == item.ResourceId && x.UnitId == item.UnitId);
 
-                                if (balanceCached != null)
+                                if (balance != null)
                                 {
-                                    balanceCached.Quantity -= item.Quantity;
+                                    balance.Quantity -= item.Quantity;
+                                    if (balance.Quantity == 0) balances.Remove(balance);
                                 }
                                 else
                                 {
@@ -218,6 +263,7 @@ namespace Warehouse.Web.Controllers
                     else
                     {
                         shipmentModel.Shipment.ShipmentItems = new List<ShipmentItem>();
+                        //TODO: Restrict to create empty shipment
                     }
 
                     var shipment = new Shipment()
@@ -236,26 +282,20 @@ namespace Warehouse.Web.Controllers
                     TempData["Success"] = "Новая отгрузка успешно добавлена.";
                     return RedirectToAction(nameof(Index));
                 }
+
+                TempData["Error"] = "Что-то пошло не так.";
+                return RedirectToAction(nameof(Index));
             }
-            catch
+            catch (InvalidOperationException)
             {
-                ModelState.AddModelError(string.Empty, "Произошла ошибка!");
+                TempData["Error"] = "Обнаружены дублирующиеся балансы. Обратитесь к администратору.";
+                return RedirectToAction(nameof(Index));
             }
-
-            //
-            shipmentModel.Resources = resources.Select(r => new SelectListItem
+            catch (Exception)
             {
-                Text = r.Title,
-                Value = r.Id.ToString()
-            });
-
-            shipmentModel.Units = units.Select(r => new SelectListItem
-            {
-                Text = r.Title,
-                Value = r.Id.ToString()
-            });
-
-            return View(shipmentModel);
+                TempData["Error"] = "Что-то пошло не так.";
+                return RedirectToAction(nameof(Index));
+            }
         }
     }
 }
