@@ -299,7 +299,7 @@ namespace Warehouse.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int id, [Bind("Receipt")] EditReceiptViewModel receiptModel) //new items don't add balances
+        public async Task<IActionResult> Edit(int id, [Bind("Receipt")] EditReceiptViewModel receiptModel)
         { 
             if (id != receiptModel.Receipt.Id || id <= 0)
             {
@@ -311,149 +311,210 @@ namespace Warehouse.Web.Controllers
                 try
                 {
                     var receipts = _memoryCache.Get<List<Receipt>>("Receipts") ?? new List<Receipt>();
-                    var rec = receipts.SingleOrDefault(r => r.Id == id);
-                    if (rec is not null)
+                    var receipt = receipts.SingleOrDefault(r => r.Id == id);
+
+                    if (receipt is null)
                     {
-                        rec.Number = receiptModel.Receipt.Number;
-                        rec.Date = receiptModel.Receipt.Date;
+                        return NotFound();
+                    }
 
-                        _memoryCache.Set("Receipts", receipts);
-                        TempData["Success"] = "Поступление успешно отредактировано.";
+                    receipt.Number = receiptModel.Receipt.Number;
+                    receipt.Date = receiptModel.Receipt.Date;
 
-                        var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-                        var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-                        var receiptItems = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
-                        var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
+                    var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+                    var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+                    var receiptItems = _memoryCache.Get<List<ReceiptItem>>("ReceiptItems") ?? new List<ReceiptItem>();
+                    var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
 
-                        var oldReceiptItems = receiptModel.Receipt.ReceiptItems?.Where(x => x.Id != 0).ToList() ?? new List<ReceiptItem>();
+                    var oldReceiptItems = receiptModel.Receipt.ReceiptItems?.Where(x => x.Id != 0).ToList() ?? new List<ReceiptItem>();
 
-                        var deletedReceitpItems = receiptItems
-                            .Where(x => x.ReceiptId == receiptModel.Receipt.Id && !oldReceiptItems.Any(modelItem => modelItem.Id == x.Id))
-                            .ToList() ?? new List<ReceiptItem>();
+                    //TODO: Add to ViewModel props for Added, Changed and Deleted receipt items ids
+                    var changedReceiptItems = receiptItems
+                        .Where(x => x.ReceiptId == receiptModel.Receipt.Id && 
+                                (
+                                    !oldReceiptItems.Any(modelItem => modelItem.Id == x.Id) ||
+                                    oldReceiptItems.Any(modelItem => modelItem.Id == x.Id && (modelItem.ResourceId != x.ResourceId || modelItem.UnitId != x.UnitId)) ||
+                                    oldReceiptItems.Any(modelItem => modelItem.Id == x.Id && (modelItem.ResourceId == x.ResourceId && modelItem.UnitId == x.UnitId && modelItem.Quantity != x.Quantity))
+                                )
+                              )
+                        .ToList() ?? new List<ReceiptItem>();
 
-                        foreach (var item in deletedReceitpItems)
+                    var changedItemsBalanceChecks = changedReceiptItems
+                            .Select(ri => new
+                            {
+                                StoredReceiptItem = ri,
+                                ModelReceiptItem = oldReceiptItems.FirstOrDefault(x => x.Id == ri.Id),
+                                Balance = balances.SingleOrDefault(b => b.ResourceId == ri.ResourceId && b.UnitId == ri.UnitId),
+                                ChangeType = oldReceiptItems.Any(ori => ori.Id == ri.Id && (ori.ResourceId != ri.ResourceId || ori.UnitId != ri.UnitId)) 
+                                    ? "ResourceOrUnitUpdate" :
+                                oldReceiptItems.Any(ori => ori.Id == ri.Id && ori.ResourceId == ri.ResourceId && ori.UnitId == ri.UnitId && ori.Quantity != ri.Quantity) 
+                                    ? "QuantityUpdate" : "Deleted",
+                                BalanceInfo = $"ResourceId: {ri.ResourceId}, UnitId: {ri.UnitId}"
+                            })
+                            .ToList();
+
+                    //TODO: Create Balance check helper
+                    if (changedItemsBalanceChecks.Any())
+                    {
+                        var onlyQuantityChangedChecks = changedItemsBalanceChecks
+                            .Where(x => x.ChangeType == "QuantityUpdate")
+                            .ToList();
+
+                        var deletedOrChangedResourceChecks = changedItemsBalanceChecks
+                            .Where(x => x.ChangeType == "Deleted" || x.ChangeType == "ResourceOrUnitUpdate")
+                            .ToList();
+
+                        var insufficientBalance = onlyQuantityChangedChecks
+                            .Where(x => x.ModelReceiptItem?.Quantity < x.StoredReceiptItem.Quantity)
+                            .FirstOrDefault(x => x.Balance == null || x.Balance.Quantity < (x.StoredReceiptItem.Quantity - x.ModelReceiptItem?.Quantity)) ??
+                            deletedOrChangedResourceChecks.FirstOrDefault(x => x.Balance == null || x.Balance.Quantity < x.StoredReceiptItem.Quantity);
+
+                        if (insufficientBalance != null)
                         {
-                            var balance = balances.SingleOrDefault(x => x.ResourceId == item.ResourceId && x.UnitId == item.UnitId);
-                            balance.Quantity -= item.Quantity;
-                            if (balance.Quantity <= 0) balances.Remove(balance);
-                            receiptItems.Remove(item);
+                            TempData["Error"] = $"Невозможно отредактировать поступление: недостаточный баланс {insufficientBalance.BalanceInfo}";
+                            return RedirectToAction(nameof(Edit), new { id });
                         }
 
-                        if (receiptModel.Receipt.ReceiptItems is not null)
+                        foreach (var check in changedItemsBalanceChecks)
                         {
-                            foreach (var item in receiptModel.Receipt.ReceiptItems) //foreach .IsUpdated
+                            if (check.ChangeType == "Deleted")
                             {
-                                if (item.Id == 0)
+                                var balance = check.Balance;
+                                balance.Quantity -= check.StoredReceiptItem.Quantity;
+
+                                if (balance.Quantity == 0)
+                                    balances.Remove(balance);
+
+                                receiptItems.Remove(check.StoredReceiptItem);
+                            }
+
+                            if (check.ChangeType == "ResourceOrUnitUpdate")
+                            {
+                                var balance = check.Balance;
+                                balance.Quantity -= check.StoredReceiptItem.Quantity;
+
+                                if (balance.Quantity == 0)
+                                    balances.Remove(balance);
+
+                                check.StoredReceiptItem.ResourceId = check.ModelReceiptItem.ResourceId;
+                                check.StoredReceiptItem.UnitId = check.ModelReceiptItem.UnitId;
+
+                                var editedItemBalance = balances.SingleOrDefault(b => b.ResourceId == check.ModelReceiptItem.ResourceId && b.UnitId == check.ModelReceiptItem.UnitId);
+
+                                if (editedItemBalance != null)
                                 {
-                                    var receiptItem = new ReceiptItem()
+                                    editedItemBalance.Quantity += check.ModelReceiptItem.Quantity;
+                                }
+                                else
+                                {
+                                    var newBalance = new Balance()
                                     {
-                                        Id = receiptItems.Count() == 0 ? 1 : receiptItems.Last().Id + 1, //test data
-                                        ReceiptId = receiptModel.Receipt.Id,
+                                        Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //test data
+                                        ResourceId = check.ModelReceiptItem.ResourceId,
+                                        UnitId = check.ModelReceiptItem.UnitId,
+                                        Quantity = check.ModelReceiptItem.Quantity
+                                    };
+
+                                    balances.Add(newBalance);
+                                }
+                            }
+
+                            if (check.ChangeType == "QuantityUpdate")
+                            {
+                                ulong difference;
+
+                                if (check.ModelReceiptItem.Quantity > check.StoredReceiptItem.Quantity)
+                                {
+                                    difference = check.ModelReceiptItem.Quantity - check.StoredReceiptItem.Quantity;
+                                    check.Balance.Quantity += difference;
+                                }
+                                else
+                                {
+                                    difference = check.StoredReceiptItem.Quantity - check.ModelReceiptItem.Quantity;
+
+                                    check.Balance.Quantity -= difference;
+
+                                    if (check.Balance.Quantity == 0) balances.Remove(check.Balance);
+                                }
+
+                                check.StoredReceiptItem.Quantity = check.ModelReceiptItem.Quantity;
+                            }
+                        }
+                    }
+
+                    if (receiptModel.Receipt.ReceiptItems is not null)
+                    {
+                        foreach (var item in receiptModel.Receipt.ReceiptItems)
+                        {
+                            if (item.Id == 0)
+                            {
+                                var receiptItem = new ReceiptItem()
+                                {
+                                    Id = receiptItems.Count() == 0 ? 1 : receiptItems.Last().Id + 1, //test data
+                                    ReceiptId = receiptModel.Receipt.Id,
+                                    ResourceId = item.ResourceId,
+                                    UnitId = item.UnitId,
+                                    Quantity = item.Quantity
+                                };
+
+                                item.Id = receiptItem.Id;
+
+                                receiptItems.Add(receiptItem);
+
+                                var existingBalance = balances.SingleOrDefault(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
+
+                                if (existingBalance != null)
+                                {
+                                    existingBalance.Quantity += item.Quantity;
+                                }
+                                else
+                                {
+                                    var newBalance = new Balance()
+                                    {
+                                        Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //test data
                                         ResourceId = item.ResourceId,
                                         UnitId = item.UnitId,
                                         Quantity = item.Quantity
                                     };
 
-                                    item.Id = receiptItem.Id;
-
-                                    receiptItems.Add(receiptItem);
-
-                                    var balanceCached = balances.SingleOrDefault(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
-
-                                    if (balanceCached != null)
-                                    {
-                                        balanceCached.Quantity += item.Quantity;
-                                    }
-                                    else
-                                    {
-                                        var balance = new Balance()
-                                        {
-                                            Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //test data
-                                            ResourceId = item.ResourceId,
-                                            UnitId = item.UnitId,
-                                            Quantity = item.Quantity
-                                        };
-
-                                        balances.Add(balance);
-                                    }
-
+                                    balances.Add(newBalance);
                                 }
-                                else
-                                {
-                                    var existingItem = receiptItems.SingleOrDefault(ri => ri.Id == item.Id);
-
-                                    if (existingItem is not null && item.GetHashCode() != existingItem?.GetHashCode()) //
-                                    {
-                                        var existingBalance = balances.SingleOrDefault(b => b.ResourceId == existingItem.ResourceId && b.UnitId == existingItem.UnitId);
-
-                                        if (item.ResourceId != existingItem.ResourceId || item.UnitId != existingItem.UnitId)
-                                        {
-                                            existingItem.ResourceId = item.ResourceId;
-                                            existingItem.UnitId = item.UnitId;
-
-                                            existingBalance.Quantity -= existingItem.Quantity;
-
-                                            if (existingBalance.Quantity <= 0) balances.Remove(existingBalance);
-
-                                            var editedItemBalance = balances.SingleOrDefault(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
-
-                                            if (editedItemBalance != null)
-                                            {
-                                                editedItemBalance.Quantity += item.Quantity;
-                                            }
-                                            else
-                                            {
-                                                var balance = new Balance()
-                                                {
-                                                    Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //test data
-                                                    ResourceId = item.ResourceId,
-                                                    UnitId = item.UnitId,
-                                                    Quantity = item.Quantity
-                                                };
-
-                                                balances.Add(balance);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            if (item.Quantity != existingItem.Quantity)
-                                            {
-                                                existingItem.Quantity = item.Quantity;
-
-                                                existingBalance.Quantity -= existingItem.Quantity;
-                                                existingBalance.Quantity += item.Quantity;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                item.Resource = resources.SingleOrDefault(r => r.Id == item.ResourceId);
-                                item.Unit = units.SingleOrDefault(u => u.Id == item.UnitId);
                             }
 
-                            //foreach .IsDeleted
-                            _memoryCache.Set("Balances", balances);
-                            _memoryCache.Set("ReceiptItems", receiptItems);
+                            item.Resource = resources.SingleOrDefault(r => r.Id == item.ResourceId);
+                            item.Unit = units.SingleOrDefault(u => u.Id == item.UnitId);
                         }
 
-                        receiptModel.Resources = resources.Select(r => new SelectListItem
-                        {
-                            Text = r.Title,
-                            Value = r.Id.ToString()
-                        });
-
-                        receiptModel.Units = units.Select(r => new SelectListItem
-                        {
-                            Text = r.Title,
-                            Value = r.Id.ToString()
-                        });
-
-                        return View(receiptModel);
+                        _memoryCache.Set("Balances", balances); //Удалить.
+                        _memoryCache.Set("Receipts", receipts);
+                        _memoryCache.Set("ReceiptItems", receiptItems);
                     }
+
+                    TempData["Success"] = "Поступление успешно отредактировано.";
+
+                    receiptModel.Resources = resources.Select(r => new SelectListItem
+                    {
+                        Text = r.Title,
+                        Value = r.Id.ToString()
+                    });
+
+                    receiptModel.Units = units.Select(r => new SelectListItem
+                    {
+                        Text = r.Title,
+                        Value = r.Id.ToString()
+                    });
+
+                    return View(receiptModel);
+                }
+                catch (InvalidOperationException)
+                {
+                    TempData["Error"] = "Обнаружены дублирующиеся балансы. Обратитесь к администратору.";
+                    return RedirectToAction(nameof(Index));
                 }
                 catch (Exception)
                 {
-                    throw;
+                    TempData["Error"] = "Неизвестная ошибка.";
+                    return RedirectToAction(nameof(Edit), new { id });
                 }
             }
             TempData["Error"] = "Что-то пошло не так.";
