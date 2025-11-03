@@ -1,0 +1,67 @@
+﻿@model Warehouse.Domain.ViewModels.Shipment.EditShipmentViewModel
+
+@{
+    ViewData["Title"] = "Отгрузка";
+}
+
+<div class="container-fluid">
+    <h2 class="text-dark text-truncate">@ViewData["Title"]</h2>
+    <div class="d-flex flex-wrap flex-sm-nowrap">
+        <form method="post" asp-action="Unsign" class="me-2 mb-2">
+            <input type="hidden" name="id" value="@Model.Shipment.Id"/> <!-- TODO: Test with asp-for -->
+            <button type="submit" class="btn btn-dark link__hover text-truncate" onclick="return confirm('Вы уверены?')">Отозвать</button>
+        </form>
+        <a asp-action="Index" class="btn btn-dark link__hover text-truncate mb-2">К списку</a>
+    </div>
+    <br>
+    <div class="form-group">
+        <label asp-for="Shipment.Number" class="control-label w-100 text-truncate"></label>
+        <input asp-for="Shipment.Number" disabled/>
+    </div>
+    <div class="form-group">
+        <label asp-for="Shipment.Client.Title" class="control-label w-100 text-truncate"></label>
+        <input asp-for="Shipment.Client.Title" disabled/>
+    </div>
+    <div class="form-group">
+        <label asp-for="Shipment.Date" class="control-label w-100 text-truncate"></label>
+        <input asp-for="Shipment.Date" type="datetime" id="datepicker" value="@Model.Shipment.Date.ToString("dd-MM-yyyy")" disabled/>
+    </div>
+    <br>
+    <table class="table border border-dark" id="shipmentItemsTable">
+        <!-- TODO: edit table style, check for useless styles -->
+        <thead>
+            <tr>
+                <th class="border-end border-dark align-content-center" width="33%">
+                    @Html.DisplayName("Ресурс")
+                </th>
+                <th class="border-end border-dark align-content-center" width="33%">
+                    @Html.DisplayName("Единица измерения")
+                </th>
+                <th class="align-content-center" width="33%">
+                    @Html.DisplayName("Количество")
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            @{
+                if (Model.Shipment.ShipmentItems is not null)
+                {
+                    for (int i = 0; i < Model.Shipment.ShipmentItems.Count(); i++)
+                    {
+                        <tr>
+                            <td class="border-end border-dark">
+                                @Html.DisplayFor(m => m.Shipment.ShipmentItems[i].Resource.Title)
+                            </td>
+                            <td class="border-end border-dark">
+                                @Html.DisplayFor(m => m.Shipment.ShipmentItems[i].Unit.Title)
+                            </td>
+                            <td>
+                                @Html.DisplayFor(m => m.Shipment.ShipmentItems[i].Quantity)
+                            </td>
+                        </tr>
+                    }
+                }
+            }
+        </tbody>
+    </table>
+</div>
