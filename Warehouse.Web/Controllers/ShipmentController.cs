@@ -297,5 +297,143 @@ namespace Warehouse.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
         }
+
+        public async Task<IActionResult> Edit(int id)
+        {
+            if (id <= 0)
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
+
+                var shipment = shipments.SingleOrDefault(x => x.Id == id);
+
+                if (shipment is null)
+                {
+                    return NotFound();
+                }
+
+                if (shipment.IsSigned)
+                {
+                    return RedirectToAction(nameof(EditSigned), shipment);
+                }
+
+                var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(r => r.IsActive) ?? new List<Client>();
+                var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
+                var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+                var shipmentItemsCache = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems") ?? new List<ShipmentItem>();
+
+                var shipmentItems = JsonSerializer.Deserialize<List<ShipmentItem>>(JsonSerializer.Serialize(shipmentItemsCache));
+
+                var shipmentModel = new Shipment()
+                {
+                    Id = shipment.Id,
+                    Number = shipment.Number,
+                    ClientId = shipment.ClientId,
+                    Date = shipment.Date,
+                    ShipmentItems = shipmentItems.Where(x => x.ShipmentId == shipment.Id).ToList() ?? new List<ShipmentItem>()
+                };
+
+                if (shipmentModel.ShipmentItems.Any())
+                {
+                    foreach (var shipmentItem in shipmentModel.ShipmentItems)
+                    {
+                        shipmentItem.Resource = resources.FirstOrDefault(r => r.Id == shipmentItem.ResourceId);
+                        shipmentItem.Unit = units.FirstOrDefault(u => u.Id == shipmentItem.UnitId);
+                    }
+                }
+
+                var vm = new EditShipmentViewModel()
+                {
+                    Shipment = shipmentModel,
+                    Clients = clients.Select(c => new SelectListItem
+                    {
+                        Text = c.Title,
+                        Value = c.Id.ToString()
+                    }),
+                    Resources = resources.Select(r => new SelectListItem
+                    {
+                        Text = r.Title,
+                        Value = r.Id.ToString()
+                    }),
+                    Units = units.Select(u => new SelectListItem
+                    {
+                        Text = u.Title,
+                        Value = u.Id.ToString()
+                    })
+                };
+
+                return View(vm);
+
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Что-то пошло не так.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        public async Task<IActionResult> EditSigned(Shipment shipment)
+        {
+            if (shipment is null)
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var client = _memoryCache.Get<List<Client>>("Clients")?
+                    .Where(r => r.IsActive)
+                    .FirstOrDefault(x => x.Id == shipment.ClientId) ?? throw new Exception(); //TODO: Handle null client ex
+
+                var shipmentItemsCache = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems")?
+                    .Where(x => x.ShipmentId == shipment.Id)
+                    .ToList() ?? new List<ShipmentItem>();
+
+                var shipmentItems = JsonSerializer.Deserialize<List<ShipmentItem>>(JsonSerializer.Serialize(shipmentItemsCache)) ?? new List<ShipmentItem>();
+
+                var resources = _memoryCache.Get<List<Resource>>("Resources")?
+                    .Where(r => r.IsActive && shipmentItems.Any(si => si.ResourceId == r.Id))
+                    .ToList() ?? new List<Resource>();
+
+                var units = _memoryCache.Get<List<Unit>>("Units")?
+                    .Where(u => u.IsActive && shipmentItems.Any(si => si.UnitId == u.Id))
+                    .ToList() ?? new List<Unit>();
+
+                var shipmentModel = new Shipment()
+                {
+                    Id = shipment.Id,
+                    Number = shipment.Number,
+                    ClientId = shipment.ClientId,
+                    Client = client,
+                    Date = shipment.Date,
+                    ShipmentItems = shipmentItems
+                };
+
+                if (shipmentModel.ShipmentItems.Any())
+                {
+                    foreach (var shipmentItem in shipmentModel.ShipmentItems)
+                    {
+                        shipmentItem.Resource = resources.FirstOrDefault(r => r.Id == shipmentItem.ResourceId);
+                        shipmentItem.Unit = units.FirstOrDefault(u => u.Id == shipmentItem.UnitId);
+                    }
+                }
+
+                var vm = new EditShipmentViewModel()
+                {
+                    Shipment = shipmentModel
+                };
+
+                return View(vm);
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Что-то пошло не так.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
     }
 }
