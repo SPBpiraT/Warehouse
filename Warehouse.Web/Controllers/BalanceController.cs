@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Caching.Memory;
 using System.Text.Json;
 using Warehouse.Domain.Entities;
-using Warehouse.Domain.ViewModels.Balance;
+using Warehouse.Web.ViewModels.Balance;
 
 namespace Warehouse.Web.Controllers
 {

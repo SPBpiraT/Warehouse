@@ -1,13 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-namespace Warehouse.Domain.ViewModels.Shipment
+namespace Warehouse.Web.ViewModels.Receipt
 {
-    public record EditShipmentViewModel
+    public record CreateReceiptViewModel
     {
-        public Entities.Shipment Shipment { get; set; }
-        [ValidateNever]
-        public IEnumerable<SelectListItem> Clients { get; set; }
+        public Domain.Entities.Receipt Receipt { get; set; }
         [ValidateNever]
         public IEnumerable<SelectListItem> Resources { get; set; }
         [ValidateNever]

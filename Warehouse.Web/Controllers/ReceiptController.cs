@@ -3,10 +3,9 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
 using Warehouse.Domain.Entities;
-using Warehouse.Domain.ViewModels.Receipt;
+using Warehouse.Web.ViewModels.Receipt;
 using System.Text.Json;
 using Warehouse.Web.Helpers;
-using System.Resources;
 
 namespace Warehouse.Web.Controllers
 {

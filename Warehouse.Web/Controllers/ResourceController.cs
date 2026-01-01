@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Warehouse.Domain.ViewModels.Resource;
+using Warehouse.Web.ViewModels.Resource;
 using Microsoft.Extensions.Caching.Memory;
 using Warehouse.Domain.Entities;
 
