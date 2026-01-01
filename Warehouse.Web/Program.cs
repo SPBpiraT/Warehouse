@@ -1,8 +1,15 @@
+using Warehouse.Infrastructure.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
+
+var configuration = builder.Services.BuildServiceProvider().GetRequiredService<IConfiguration>(); //
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddMemoryCache();
+
+var connectionString = configuration.GetConnectionString("WarehouseDb");
+builder.Services.AddContext(connectionString);
 
 var app = builder.Build();
 
