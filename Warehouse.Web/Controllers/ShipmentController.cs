@@ -4,8 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
 using System.Text.Json;
 using Warehouse.Domain.Entities;
-using Warehouse.Domain.ViewModels.Receipt;
-using Warehouse.Domain.ViewModels.Shipment;
+using Warehouse.Web.ViewModels.Shipment;
 
 namespace Warehouse.Web.Controllers
 {

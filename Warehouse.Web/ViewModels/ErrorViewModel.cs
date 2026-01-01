@@ -1,4 +1,4 @@
-﻿namespace Warehouse.Domain.ViewModels
+﻿namespace Warehouse.Web.ViewModels
 {
     public class ErrorViewModel
     {

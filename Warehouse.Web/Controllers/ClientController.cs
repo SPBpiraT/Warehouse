@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Warehouse.Domain.Entities;
-using Warehouse.Domain.ViewModels.Client;
+using Warehouse.Web.ViewModels.Client;
 
 namespace Warehouse.Web.Controllers
 {

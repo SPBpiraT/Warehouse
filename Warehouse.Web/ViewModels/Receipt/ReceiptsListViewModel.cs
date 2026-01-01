@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc.Rendering;
 using System.ComponentModel.DataAnnotations;
 
-namespace Warehouse.Domain.ViewModels.Receipt
+namespace Warehouse.Web.ViewModels.Receipt
 {
     public record ReceiptsListViewModel
     {
-        public IEnumerable<Entities.Receipt> Receipts { get; set; }
+        public IEnumerable<Domain.Entities.Receipt> Receipts { get; set; }
 
         [Display(Name = "Номер поступления")]
         public IEnumerable<SelectListItem> ReceiptNumbers{ get; set; }

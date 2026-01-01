@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-namespace Warehouse.Domain.ViewModels.Shipment
+namespace Warehouse.Web.ViewModels.Shipment
 {
     public record CreateShipmentViewModel
     {
-        public Entities.Shipment Shipment { get; set; }
+        public Domain.Entities.Shipment Shipment { get; set; }
         [ValidateNever]
         public IEnumerable<SelectListItem> Clients { get; set; }
         [ValidateNever]
