@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Warehouse.Domain.Entities;
+using Warehouse.Infrastructure;
 using Warehouse.Web.ViewModels.Unit;
 
 namespace Warehouse.Web.Controllers
@@ -8,31 +10,34 @@ namespace Warehouse.Web.Controllers
     public class UnitController : Controller
     {
         private readonly ILogger<UnitController> _logger;
-        private readonly IMemoryCache _memoryCache;
+        //private readonly IMemoryCache _memoryCache;
+        private readonly WarehouseDbContext _warehouseDbContext;
 
-        public UnitController(ILogger<UnitController> logger, IMemoryCache memoryCache)
+        public UnitController(ILogger<UnitController> logger, 
+            IMemoryCache memoryCache, 
+            WarehouseDbContext warehouseDbContext)
         {
             _logger = logger;
-            _memoryCache = memoryCache;
+            //_memoryCache = memoryCache;
+            _warehouseDbContext = warehouseDbContext;
         }
 
         public async Task<IActionResult> Index()
         {
             //UoW GetAll
-            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
-            var vm = new UnitsListViewModel() { Units = units.Where(x => x.IsActive).ToList() };
+            var units = await _warehouseDbContext.Units.Where(x => x.IsActive).ToListAsync();
+            var vm = new UnitsListViewModel() { Units = units };
             return View(vm);
-
-
         }
 
         public async Task<IActionResult> Archive()
         {
-            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
-            var vm = new UnitsListViewModel() { Units = units.Where(x => !x.IsActive).ToList() };
+            var units = await _warehouseDbContext.Units.Where(x => !x.IsActive).ToListAsync();
+            var vm = new UnitsListViewModel() { Units = units };
             return View(vm);
         }
-        public async Task<IActionResult> Create()
+
+        public IActionResult Create()
         {
             return View();
         }
@@ -40,50 +45,56 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([Bind("Title")] Unit unit)
         {
-            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
-
-            try
+            if (ModelState.IsValid)
             {
-                if (ModelState.IsValid)
+                try
                 {
-                    units.Add(new Unit()
+                    var entity = await _warehouseDbContext.Units
+                            .FirstOrDefaultAsync(u => u.Title == unit.Title);
+
+                    if (entity != null)
                     {
-                        Id = units.Count() + 1,
-                        Title = unit.Title,
-                        IsActive = true
-                    });
-                    _memoryCache.Set("Units", units);
-                    TempData["Success"] = "Новая единица измерения успешно добавлена.";
-                    return RedirectToAction(nameof(Index));
+                        TempData["Error"] = "Уже существует единица с таким же наименованием.";
+                        return RedirectToAction(nameof(Create));
+                    }
+
+                    unit.IsActive = true;
+
+                    await _warehouseDbContext.Units.AddAsync(unit);
+                    await _warehouseDbContext.SaveChangesAsync();
                 }
-            }
-            catch
-            {
-                ModelState.AddModelError(string.Empty, "Произошла ошибка!");
+                catch (Exception)
+                {
+                    throw;
+                }
+
+                TempData["Success"] = "Новая единица измерения успешно добавлена.";
+                return RedirectToAction(nameof(Index));
             }
 
+            TempData["Error"] = "Ошибка валидации.";
             return View();
         }
 
-        public async Task<IActionResult> Edit(int id)
+        public async Task<IActionResult> Edit(int? id)
         {
             if (id == null || id == 0)
             {
                 return NotFound();
             }
             //UoW Get
-            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
-            var vm = units.FirstOrDefault(x => x.Id == id);
+            var entity = await _warehouseDbContext.Units.FirstOrDefaultAsync(x => x.Id == id);
 
-            if (vm == null)
+            if (entity == null)
             {
                 return NotFound();
             }
-            return View(vm);
+
+            return View(entity);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title")] Unit unit)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,IsActive")] Unit unit)
         {
             if (id != unit.Id)
             {
@@ -94,81 +105,101 @@ namespace Warehouse.Web.Controllers
             {
                 try
                 {
-                    var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
-                    var un = units.FirstOrDefault(x => x.Id == id);
-                    if (un is not null)
-                    {
-                        un.Title = unit.Title;
-                    }
-                    _memoryCache.Set("Units", units);
-                    TempData["Success"] = "Единица измерения успешно отредактирована.";
+                    var exists = await _warehouseDbContext.Units.AnyAsync(x => x.Id == unit.Id);
 
+                    if (!exists)
+                    {
+                        TempData["Error"] = "Единица измерения не найдена.";
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    _warehouseDbContext.Units.Update(unit);
+                    await _warehouseDbContext.SaveChangesAsync();
                 }
                 catch (Exception)
                 {
                     throw;
                 }
+
+                TempData["Success"] = "Единица измерения успешно отредактирована.";
                 return RedirectToAction(nameof(Index));
             }
+
+            TempData["Error"] = "Ошибка валидации.";
             return View(unit);
         }
 
-        public async Task<IActionResult> EditArchived(int id)
+        public async Task<IActionResult> EditArchived(int? id)
         {
             if (id == null || id == 0)
             {
                 return NotFound();
             }
             //UoW Get
-            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
-            var vm = units.FirstOrDefault(x => x.Id == id);
+            var entity = await _warehouseDbContext.Units.FirstOrDefaultAsync(x => x.Id == id);
 
-            if (vm == null)
+            if (entity == null)
             {
                 return NotFound();
             }
-            return View(vm);
+
+            return View(entity);
         }
 
         [HttpPost]
         public async Task<IActionResult> ChangeStatus(int id)
         {
-            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
-
             try
             {
-                var unit = units.FirstOrDefault(x => x.Id == id);
-                if (unit is not null)
-                {
-                    unit.IsActive = !unit.IsActive;
-                }
+                var entity = await _warehouseDbContext.Units.FirstOrDefaultAsync(x => x.Id == id);
 
-                _memoryCache.Set("Units", units);
-                return RedirectToAction(nameof(Index));
+                if (entity is null)
+                {
+                    TempData["Error"] = "Единица измерения не найдена.";
+                }
+                else
+                {
+                    entity.IsActive = !entity.IsActive;
+
+                    _warehouseDbContext.Units.Update(entity);
+                    await _warehouseDbContext.SaveChangesAsync();
+
+                    TempData["Success"] = "Статус изменен.";
+                }
             }
-            catch
+            catch(Exception)
             {
-                return RedirectToAction(nameof(Index));
+                throw;
             }
+
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
-            var units = _memoryCache.Get<List<Unit>>("Units") ?? new List<Unit>();
             try
             {
-                var unit = units.FirstOrDefault(x => x.Id == id);
-                if (unit is not null) units.Remove(unit);
+                var entity = await _warehouseDbContext.Units.FirstOrDefaultAsync(x => x.Id == id);
 
-                _memoryCache.Set("Units", units);
-                TempData["Success"] = "Единица измерения успешно удалена.";
-                return RedirectToAction(nameof(Index));
+                if (entity is null)
+                {
+                    TempData["Error"] = "Единица измерения не найдена.";
+                }
+                else
+                {
+                    _warehouseDbContext.Units.Remove(entity);
+                    await _warehouseDbContext.SaveChangesAsync();
+
+                    TempData["Success"] = "Единица измерения успешно удалена.";
+                }
             }
-            catch
+            catch(Exception)
             {
-                return RedirectToAction(nameof(Index));
+                throw;
             }
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }

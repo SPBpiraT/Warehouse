@@ -11,11 +11,11 @@
             <div class="d-flex flex-wrap flex-sm-nowrap">
                 <button type="submit" form="editForm" class="btn btn-dark link__hover text-truncate me-2 mb-2">Сохранить</button>
                 <form method="post" asp-action="Delete" class="me-2 mb-2">
-                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="Id"/>
                     <button type="submit" class="btn btn-dark link__hover text-truncate" onclick="return confirm('Вы уверены?')">Удалить</button>
                 </form>
                 <form method="post" asp-action="ChangeStatus" class="me-2 mb-2">
-                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="Id"/>
                     <button type="submit" class="btn btn-dark link__hover text-truncate">В работу</button>
                 </form>
                 <a asp-action="Index" class="btn btn-dark link__hover text-truncate me-2 mb-2">Назад к списку</a>
@@ -23,7 +23,8 @@
             <br>
             <form id="editForm" method="post" asp-action="Edit">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="Id"/>
+                <input type="hidden" asp-for="IsActive"/>
                 <div class="form-group">
                     <label asp-for="Title" class="control-label w-100 text-truncate"></label>
                     <input asp-for="Title"/>
@@ -36,6 +37,6 @@
 
 @section Scripts {
     @{
-        <partial name="_ValidationScriptsPartial" />
+        <partial name="_ValidationScriptsPartial"/>
     }
 }
