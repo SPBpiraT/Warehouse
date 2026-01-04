@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
-using System.Text.Json;
 using Warehouse.Domain.Entities;
+using Warehouse.Infrastructure;
 using Warehouse.Web.ViewModels.Balance;
 
 namespace Warehouse.Web.Controllers
@@ -10,24 +11,24 @@ namespace Warehouse.Web.Controllers
     public class BalanceController : Controller
     {
         private readonly ILogger<BalanceController> _logger;
-        private readonly IMemoryCache _memoryCache;
+        private readonly WarehouseDbContext _warehouseDbContext;
 
-        public BalanceController(ILogger<BalanceController> logger, IMemoryCache memoryCache)
+        public BalanceController(ILogger<BalanceController> logger, 
+            IMemoryCache memoryCache,
+            WarehouseDbContext warehouseDbContext)
         {
             _logger = logger;
-            _memoryCache = memoryCache;
+            _warehouseDbContext = warehouseDbContext;
         }
         public async Task<IActionResult> Index([Bind("SelectedResources,SelectedUnits")] BalancesListViewModel balancesListView)
         {
-
             //UoW GetAll
-            var balancesCache = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
-            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+            //TODO: Cache results
+            var balances = await _warehouseDbContext.Balances.ToListAsync();
+            var resources = await _warehouseDbContext.Resources.ToListAsync();
+            var units = await _warehouseDbContext.Units.ToListAsync();
 
-            var balances = JsonSerializer.Deserialize<List<Balance>>(JsonSerializer.Serialize(balancesCache));
-
-            // Фильтрация
+            //Filter
             if (balancesListView.SelectedResources != null && balancesListView.SelectedResources.Count() > 0)
             {
                 balances = balances.Where(b => balancesListView.SelectedResources.Contains(b.ResourceId)).ToList();
@@ -40,8 +41,8 @@ namespace Warehouse.Web.Controllers
 
             foreach (var balance in balances)
             {
-                balance.Resource = resources.SingleOrDefault(r => r.Id == balance.ResourceId);
-                balance.Unit = units.SingleOrDefault(u => u.Id == balance.UnitId);
+                balance.Resource = resources.FirstOrDefault(r => r.Id == balance.ResourceId);
+                balance.Unit = units.FirstOrDefault(u => u.Id == balance.UnitId);
             }
 
             var vm = new BalancesListViewModel
@@ -52,7 +53,7 @@ namespace Warehouse.Web.Controllers
                     Text = r.Title,
                     Value = r.Id.ToString()
                 }),
-                Units = units.Select(u => new SelectListItem 
+                Units = units.Select(u => new SelectListItem
                 {
                     Text = u.Title,
                     Value = u.Id.ToString()
@@ -62,7 +63,6 @@ namespace Warehouse.Web.Controllers
             };
 
             return View(vm);
-
         }
     }
 }

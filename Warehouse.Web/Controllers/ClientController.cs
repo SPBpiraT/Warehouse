@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Warehouse.Domain.Entities;
+using Warehouse.Infrastructure;
 using Warehouse.Web.ViewModels.Client;
 
 namespace Warehouse.Web.Controllers
@@ -8,31 +10,31 @@ namespace Warehouse.Web.Controllers
     public class ClientController : Controller
     {
         private readonly ILogger<ClientController> _logger;
-        private readonly IMemoryCache _memoryCache;
+        private readonly WarehouseDbContext _warehouseDbContext;
 
-        public ClientController(ILogger<ClientController> logger, IMemoryCache memoryCache)
+        public ClientController(ILogger<ClientController> logger,
+            WarehouseDbContext warehouseDbContext)
         {
             _logger = logger;
-            _memoryCache = memoryCache;
+            _warehouseDbContext = warehouseDbContext;
         }
 
         public async Task<IActionResult> Index()
         {
             //UoW GetAll
-            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
-            var vm = new ClientsListViewModel() { Clients = clients.Where(x => x.IsActive).ToList() };
+            var clients = await _warehouseDbContext.Clients.Where(x => x.IsActive).ToListAsync();
+            var vm = new ClientsListViewModel() { Clients = clients };
             return View(vm);
-
-
         }
 
         public async Task<IActionResult> Archive()
         {
-            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
-            var vm = new ClientsListViewModel() { Clients = clients.Where(x => !x.IsActive).ToList() };
+            var clients = await _warehouseDbContext.Clients.Where(x => !x.IsActive).ToListAsync();
+            var vm = new ClientsListViewModel() { Clients = clients };
             return View(vm);
         }
-        public async Task<IActionResult> Create()
+
+        public IActionResult Create()
         {
             return View();
         }
@@ -40,51 +42,56 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([Bind("Title,Address")] Client client)
         {
-            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
-
-            try
+            if (ModelState.IsValid)
             {
-                if (ModelState.IsValid)
+                try
                 {
-                    clients.Add(new Client()
+                    var entity = await _warehouseDbContext.Clients
+                            .FirstOrDefaultAsync(c => c.Title == client.Title);
+
+                    if (entity != null)
                     {
-                        Id = clients.Count() + 1,
-                        Title = client.Title,
-                        Address = client.Address,
-                        IsActive = true
-                    });
-                    _memoryCache.Set("Clients", clients);
-                    TempData["Success"] = "Новый клиент успешно добавлен.";
-                    return RedirectToAction(nameof(Index));
+                        TempData["Error"] = "Уже существует клиент с таким же наименованием.";
+                        return RedirectToAction(nameof(Create));
+                    }
+
+                    client.IsActive = true;
+
+                    await _warehouseDbContext.Clients.AddAsync(client);
+                    await _warehouseDbContext.SaveChangesAsync();
                 }
-            }
-            catch
-            {
-                ModelState.AddModelError(string.Empty, "Произошла ошибка!");
+                catch (Exception)
+                {
+                    throw;
+                }
+
+                TempData["Success"] = "Новый клиент успешно добавлен.";
+                return RedirectToAction(nameof(Index));
             }
 
+            TempData["Error"] = "Ошибка валидации.";
             return View();
         }
 
-        public async Task<IActionResult> Edit(int id)
+        public async Task<IActionResult> Edit(int? id)
         {
             if (id == null || id == 0)
             {
                 return NotFound();
             }
             //UoW Get
-            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
-            var cli = clients.FirstOrDefault(x => x.Id == id);
+            var entity = await _warehouseDbContext.Clients.FirstOrDefaultAsync(x => x.Id == id);
 
-            if (cli == null)
+            if (entity == null)
             {
                 return NotFound();
             }
-            return View(cli);
+
+            return View(entity);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Address")] Client client)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Address,IsActive")] Client client)
         {
             if (id != client.Id)
             {
@@ -95,81 +102,101 @@ namespace Warehouse.Web.Controllers
             {
                 try
                 {
-                    var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
-                    var cli = clients.FirstOrDefault(x => x.Id == id);
-                    if (cli is not null)
-                    {
-                        cli.Title = client.Title;
-                        cli.Address = client.Address;
-                    }
-                    _memoryCache.Set("Clients", clients);
-                    TempData["Success"] = "Клиент успешно отредактирован.";
+                    var exists = await _warehouseDbContext.Clients.AnyAsync(x => x.Id == client.Id);
 
+                    if (!exists)
+                    {
+                        TempData["Error"] = "Клиент не найден.";
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    _warehouseDbContext.Clients.Update(client);
+                    await _warehouseDbContext.SaveChangesAsync();
                 }
                 catch (Exception)
                 {
                     throw;
                 }
+
+                TempData["Success"] = "Клиент успешно отредактирован.";
                 return RedirectToAction(nameof(Index));
             }
+
+            TempData["Error"] = "Ошибка валидации.";
             return View(client);
         }
 
-        public async Task<IActionResult> EditArchived(int id)
+        public async Task<IActionResult> EditArchived(int? id)
         {
             if (id == null || id == 0)
             {
                 return NotFound();
             }
             //UoW Get
-            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
-            var vm = clients.FirstOrDefault(x => x.Id == id);
+            var entity = await _warehouseDbContext.Clients.FirstOrDefaultAsync(x => x.Id == id);
 
-            if (vm == null)
+            if (entity == null)
             {
                 return NotFound();
             }
-            return View(vm);
+
+            return View(entity);
         }
 
         [HttpPost]
         public async Task<IActionResult> ChangeStatus(int id)
         {
-            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
-
             try
             {
-                var cli = clients.FirstOrDefault(x => x.Id == id);
-                if (cli is not null)
+                var entity = await _warehouseDbContext.Clients.FirstOrDefaultAsync(x => x.Id == id);
+
+                if (entity is null)
                 {
-                    cli.IsActive = !cli.IsActive;
+                    TempData["Error"] = "Клиент не найден.";
                 }
-                _memoryCache.Set("Clients", clients);
-                return RedirectToAction(nameof(Index));
+                else
+                {
+                    entity.IsActive = !entity.IsActive;
+
+                    _warehouseDbContext.Clients.Update(entity);
+                    await _warehouseDbContext.SaveChangesAsync();
+
+                    TempData["Success"] = "Статус изменен.";
+                }
             }
-            catch
+            catch(Exception)
             {
-                return RedirectToAction(nameof(Index));
+                throw;
             }
+
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
-            var clients = _memoryCache.Get<List<Client>>("Clients") ?? new List<Client>();
             try
             {
-                var cli = clients.FirstOrDefault(x => x.Id == id);
-                if (cli is not null) clients.Remove(cli);
+                var entity = await _warehouseDbContext.Clients.FirstOrDefaultAsync(x => x.Id == id);
 
-                _memoryCache.Set("Clients", clients);
-                TempData["Success"] = "Клиент успешно удален.";
-                return RedirectToAction(nameof(Index));
+                if (entity is null)
+                {
+                    TempData["Error"] = "Клиент не найден.";
+                }
+                else
+                {
+                    _warehouseDbContext.Clients.Remove(entity);
+                    await _warehouseDbContext.SaveChangesAsync();
+
+                    TempData["Success"] = "Клиент успешно удален.";
+                }
             }
-            catch
+            catch(Exception)
             {
-                return RedirectToAction(nameof(Index));
+                throw;
             }
+
+            return RedirectToAction(nameof(Index));
         }
     }
 }
