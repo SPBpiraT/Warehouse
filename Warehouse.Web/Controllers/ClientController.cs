@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Warehouse.Domain.Entities;
 using Warehouse.Infrastructure;
 using Warehouse.Web.ViewModels.Client;

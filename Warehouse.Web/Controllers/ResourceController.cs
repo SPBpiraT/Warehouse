@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Warehouse.Web.ViewModels.Resource;
-using Microsoft.Extensions.Caching.Memory;
 using Warehouse.Domain.Entities;
 using Warehouse.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +12,6 @@ namespace Warehouse.Web.Controllers
         private readonly WarehouseDbContext _warehouseDbContext;
 
         public ResourceController(ILogger<ResourceController> logger, 
-            IMemoryCache memoryCache,
             WarehouseDbContext warehouseDbContext)
         {
             _logger = logger;

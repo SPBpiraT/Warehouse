@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
-using Warehouse.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using Warehouse.Infrastructure;
 
 namespace Warehouse.Web.Controllers.Api
 {
@@ -10,12 +10,12 @@ namespace Warehouse.Web.Controllers.Api
     public class BalanceController : ControllerBase
     {
         private readonly ILogger<BalanceController> _logger;
-        private readonly IMemoryCache _memoryCache;
+        private readonly WarehouseDbContext _warehouseDbContext;
 
-        public BalanceController(ILogger<BalanceController> logger, IMemoryCache memoryCache)
+        public BalanceController(ILogger<BalanceController> logger, WarehouseDbContext warehouseDbContext)
         {
             _logger = logger;
-            _memoryCache = memoryCache;
+            _warehouseDbContext = warehouseDbContext;
         }
 
         [HttpGet("GetBalance")]
@@ -23,8 +23,8 @@ namespace Warehouse.Web.Controllers.Api
         {
             try
             {
-                var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
-                var balance = balances.FirstOrDefault(b => b.ResourceId == resourceId && b.UnitId == unitId);
+                var balance = await _warehouseDbContext.Balances
+                    .FirstOrDefaultAsync(b => b.ResourceId == resourceId && b.UnitId == unitId);
 
                 return Ok(new
                 {
