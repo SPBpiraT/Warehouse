@@ -2,7 +2,7 @@
 
 namespace Warehouse.Domain.Entities
 {
-    public record Shipment
+    public class Shipment
     {
         public int Id { get; set; }
         [Display(Name = "Номер")]

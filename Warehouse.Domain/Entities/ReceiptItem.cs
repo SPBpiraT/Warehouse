@@ -1,6 +1,6 @@
 ﻿namespace Warehouse.Domain.Entities
 {
-    public record ReceiptItem
+    public class ReceiptItem
     {
         public int Id { get; set; }
         public int ReceiptId { get; set; }

@@ -1,6 +1,6 @@
 ﻿namespace Warehouse.Domain.Entities
 {
-    public record Balance
+    public class Balance
     {
         public int Id { get; set; }
         public int ResourceId { get; set; }
