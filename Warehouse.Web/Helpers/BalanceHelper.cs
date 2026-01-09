@@ -1,12 +1,13 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.EntityFrameworkCore;
 using Warehouse.Domain.Entities;
+using Warehouse.Infrastructure;
 
 namespace Warehouse.Web.Helpers
 {
     public class BalanceHelper
     {
         public static void UpdateBalanceFromReceipt(
-            IMemoryCache context, //context
+            WarehouseDbContext context,
             List<ReceiptItem> previousItems,
             List<ReceiptItem> newItems)
         {
@@ -15,16 +16,15 @@ namespace Warehouse.Web.Helpers
         }
 
         private static void UpdateBalance(
-            IMemoryCache context, //context
-             List<ReceiptItem> items, 
+            WarehouseDbContext context,
+            List<ReceiptItem> items, 
             bool isSubstraction = false)
         {
-            var balances = context.Get<List<Balance>>("Balances") ?? new List<Balance>();
             var balancesToUpdate = new List<Balance>();
 
             foreach (var item in items)
             {
-                var balance = balances.SingleOrDefault(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
+                var balance = context.Balances.SingleOrDefault(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
 
                 if (balance != null)
                 {
@@ -49,27 +49,36 @@ namespace Warehouse.Web.Helpers
                 .Where(r => balancesToUpdate.All(b => b.ResourceId != r.ResourceId || b.UnitId != r.UnitId))
                 .Select(r => new Balance
                 {
-                    Id = balances.Count() == 0 ? 1 : balances.Last().Id + 1, //
                     Quantity = r.Quantity,
                     ResourceId = r.ResourceId,
                     UnitId = r.UnitId
                 }).ToList();
 
-                balances.AddRange(missingBalances);
+                balancesToUpdate.AddRange(missingBalances);
+                context.Balances.UpdateRange(balancesToUpdate);
             }
         }
 
+        public static async Task<bool> IsInvalidReceiptDeletion(WarehouseDbContext context, int id)
+        {
+            return await context.Balances
+                .Select(b =>
+                 context.ReceiptItems
+                        .Where(r => r.ReceiptId == id)
+                        .Where(r => r.ResourceId == b.ResourceId && r.UnitId == b.UnitId)
+                        .FirstOrDefault(r => r.Quantity > b.Quantity)
+                )
+                .Where(r => r != null)
+                .AnyAsync();
+        }
         public static async Task<bool> IsInvalidReceiptUpdate(
-            IMemoryCache context, //context
+            WarehouseDbContext context, //context
             List<ReceiptItem> previousItems,
             List<ReceiptItem> newItems)
         {
-            var balances = context.Get<List<Balance>>("Balances") ?? new List<Balance>();
-
             foreach (var previousItem in previousItems)
             {
                 var newItem = newItems.FirstOrDefault(r => r.Id == previousItem.Id && (r.ResourceId == previousItem.ResourceId && r.UnitId == previousItem.UnitId));
-
                 var newItemQuantity = newItem?.Quantity ?? 0;
 
                 if (newItemQuantity > previousItem.Quantity)
@@ -79,10 +88,10 @@ namespace Warehouse.Web.Helpers
 
                 var quantityDelta = previousItem.Quantity - newItemQuantity;
 
-                var hasInvalidBalance = balances //await context
+                var hasInvalidBalance = await context.Balances
                     .Where(r => r.ResourceId == previousItem.ResourceId && r.UnitId == previousItem.UnitId)
                     .Where(r => r.Quantity < quantityDelta)
-                    .Any();
+                    .AnyAsync();
 
                 if (hasInvalidBalance)
                 {

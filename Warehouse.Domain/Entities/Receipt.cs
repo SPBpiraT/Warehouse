@@ -2,7 +2,7 @@
 
 namespace Warehouse.Domain.Entities
 {
-    public record Receipt
+    public class Receipt
     {
         public int Id { get; set; }
         [Display(Name = "Номер")]

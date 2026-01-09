@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
-using Warehouse.Domain.Entities;
 using Warehouse.Infrastructure;
 using Warehouse.Web.ViewModels.Balance;
 
@@ -13,8 +11,7 @@ namespace Warehouse.Web.Controllers
         private readonly ILogger<BalanceController> _logger;
         private readonly WarehouseDbContext _warehouseDbContext;
 
-        public BalanceController(ILogger<BalanceController> logger, 
-            IMemoryCache memoryCache,
+        public BalanceController(ILogger<BalanceController> logger,
             WarehouseDbContext warehouseDbContext)
         {
             _logger = logger;

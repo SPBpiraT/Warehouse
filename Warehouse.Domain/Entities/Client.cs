@@ -2,7 +2,7 @@
 
 namespace Warehouse.Domain.Entities
 {
-    public record Client
+    public class Client
     {
         public int Id { get; set; }
 
