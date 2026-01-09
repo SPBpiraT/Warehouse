@@ -1,4 +1,6 @@
-﻿namespace Warehouse.Domain.Entities
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+
+namespace Warehouse.Domain.Entities
 {
     public class ShipmentItem
     {
@@ -6,8 +8,10 @@
         public int ShipmentId { get; set; }
         public int ResourceId { get; set; }
         public int UnitId { get; set; }
-        public Resource? Resource { get; set; }
-        public Unit? Unit { get; set; }
+        [ValidateNever]
+        public Resource Resource { get; set; }
+        [ValidateNever]
+        public Unit Unit { get; set; }
         public ulong Quantity { get; set; }
     }
 }

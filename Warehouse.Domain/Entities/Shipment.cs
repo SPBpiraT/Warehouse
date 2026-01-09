@@ -10,8 +10,8 @@ namespace Warehouse.Domain.Entities
         [Display(Name = "Дата")]
         public DateTime Date { get; set; }
         public int ClientId { get; set; }
-        public Client? Client { get; set; }
+        public Client Client { get; set; }
         public bool IsSigned { get; set; }
-        public IList<ShipmentItem>? ShipmentItems { get; set; }
+        public IList<ShipmentItem> ShipmentItems { get; set; }
     }
 }

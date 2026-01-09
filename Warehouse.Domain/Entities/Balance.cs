@@ -6,7 +6,7 @@
         public int ResourceId { get; set; }
         public int UnitId { get; set; }
         public ulong Quantity { get; set; }
-        public Resource? Resource { get; set; }
-        public Unit? Unit { get; set; }
+        public Resource Resource { get; set; }
+        public Unit Unit { get; set; }
     }
 }
