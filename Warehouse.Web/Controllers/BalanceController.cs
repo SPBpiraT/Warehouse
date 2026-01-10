@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Warehouse.Domain.Entities;
 using Warehouse.Infrastructure;
 using Warehouse.Web.ViewModels.Balance;
 
@@ -19,6 +21,58 @@ namespace Warehouse.Web.Controllers
         }
         public async Task<IActionResult> Index([Bind("SelectedResources,SelectedUnits")] BalancesListViewModel balancesListView)
         {
+            balancesListView.SelectedResources ??= new List<int>();
+            balancesListView.SelectedUnits ??= new List<int>();
+
+            try
+            {
+                var resourcesSelectItems = await _warehouseDbContext.Resources
+                    .Select(r => new SelectListItem
+                    {
+                        Text = r.Title.ToString(),
+                        Value = r.Id.ToString()
+                    })
+                    .ToListAsync();
+
+                var unitsSelectItems = await _warehouseDbContext.Units
+                    .Select(u => new SelectListItem
+                    {
+                        Text = u.Title.ToString(),
+                        Value = u.Id.ToString()
+                    })
+                    .ToListAsync();
+
+                var balances = await _warehouseDbContext.Balances
+                    .Select(r => new Balance
+                    {
+                        Id = r.Id,
+                        Quantity = r.Quantity,
+                        ResourceId = r.ResourceId,
+                        Resource = r.Resource,
+                        UnitId = r.UnitId,
+                        Unit = r.Unit
+                    })
+                    .Where(b => balancesListView.SelectedResources.Count() <= 0 || balancesListView.SelectedResources.Contains(b.ResourceId))
+                    .Where(b => balancesListView.SelectedUnits.Count() <= 0 || balancesListView.SelectedUnits.Contains(b.UnitId))
+                    .ToListAsync();
+
+                var vm = new BalancesListViewModel
+                {
+                    Balances = balances,
+                    Resources = resourcesSelectItems,
+                    Units = unitsSelectItems,
+                    SelectedResources = balancesListView.SelectedResources,
+                    SelectedUnits = balancesListView.SelectedUnits
+                };
+
+                return View(vm);
+            }
+            catch (Exception)
+            {
+                throw; //TODO: Handle exceptions
+            }
+            /*
+             
             //UoW GetAll
             //TODO: Cache results
             var balances = await _warehouseDbContext.Balances.ToListAsync();
@@ -60,6 +114,8 @@ namespace Warehouse.Web.Controllers
             };
 
             return View(vm);
+
+            */
         }
     }
 }
