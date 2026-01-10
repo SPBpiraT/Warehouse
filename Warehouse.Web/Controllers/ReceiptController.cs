@@ -33,23 +33,29 @@ namespace Warehouse.Web.Controllers
         {
             try
             {
-                var resourcesSelectItems = await _warehouseDbContext.Resources.Select(r => new SelectListItem
-                {
-                    Text = r.Title.ToString(),
-                    Value = r.Id.ToString()
-                }).ToListAsync();
+                var resourcesSelectItems = await _warehouseDbContext.Resources
+                    .Select(r => new SelectListItem
+                    {
+                        Text = r.Title.ToString(),
+                        Value = r.Id.ToString()
+                    })
+                    .ToListAsync();
 
-                var unitsSelectItems = await _warehouseDbContext.Units.Select(u => new SelectListItem
-                {
-                    Text = u.Title.ToString(),
-                    Value = u.Id.ToString()
-                }).ToListAsync();
+                var unitsSelectItems = await _warehouseDbContext.Units
+                    .Select(u => new SelectListItem
+                    {
+                        Text = u.Title.ToString(),
+                        Value = u.Id.ToString()
+                    })
+                    .ToListAsync();
 
-                var receiptNumbersSelectItems = await _warehouseDbContext.Receipts.Select(r => new SelectListItem
-                {
-                    Text = r.Number.ToString(),
-                    Value = r.Id.ToString()
-                }).ToListAsync();
+                var receiptNumbersSelectItems = await _warehouseDbContext.Receipts
+                    .Select(r => new SelectListItem
+                    {
+                        Text = r.Number.ToString(),
+                        Value = r.Id.ToString()
+                    })
+                    .ToListAsync();
 
                 DateTime? start = null;
                 DateTime? end = null;
@@ -62,28 +68,28 @@ namespace Warehouse.Web.Controllers
                 }
 
                 var receipts = await _warehouseDbContext.Receipts
-                .Where(r => start == null || r.Date >= start)
-                .Where(r => end == null || r.Date <= end)
-                .Where(r => receiptsListView.SelectedNumbers == null ||
-                            receiptsListView.SelectedNumbers.Count() <= 0 ||
-                            receiptsListView.SelectedNumbers.Contains(r.Id))
-                .Select(r => new Receipt
-                {
-                    Id = r.Id,
-                    Date = r.Date,
-                    Number = r.Number,
-                    ReceiptItems = r.ReceiptItems.Select(ri => new ReceiptItem
+                    .Where(r => start == null || r.Date >= start)
+                    .Where(r => end == null || r.Date <= end)
+                    .Where(r => receiptsListView.SelectedNumbers == null ||
+                                receiptsListView.SelectedNumbers.Count() <= 0 ||
+                                receiptsListView.SelectedNumbers.Contains(r.Id))
+                    .Select(r => new Receipt
                     {
-                        Id = ri.Id,
-                        Quantity = ri.Quantity,
-                        Resource = ri.Resource,
-                        ResourceId = ri.ResourceId,
-                        Unit = ri.Unit,
-                        UnitId = ri.UnitId
+                        Id = r.Id,
+                        Date = r.Date,
+                        Number = r.Number,
+                        ReceiptItems = r.ReceiptItems.Select(ri => new ReceiptItem
+                        {
+                            Id = ri.Id,
+                            Quantity = ri.Quantity,
+                            Resource = ri.Resource,
+                            ResourceId = ri.ResourceId,
+                            Unit = ri.Unit,
+                            UnitId = ri.UnitId
+                        })
+                        .ToList()
                     })
-                    .ToList()
-                })
-                .ToListAsync();
+                    .ToListAsync();
 
                 receipts = receipts
                     .Where(r => receiptsListView.SelectedResources == null ||
@@ -116,23 +122,29 @@ namespace Warehouse.Web.Controllers
 
         public async Task<IActionResult> Create()
         {
-            var resourcesSelectItems = await _warehouseDbContext.Resources.Select(r => new SelectListItem
-            {
-                Text = r.Title.ToString(),
-                Value = r.Id.ToString()
-            }).ToListAsync();
+            var resourcesSelectItems = await _warehouseDbContext.Resources
+                .Select(r => new SelectListItem
+                {
+                    Text = r.Title.ToString(),
+                    Value = r.Id.ToString()
+                })
+                .ToListAsync();
 
-            var unitsSelectItems = await _warehouseDbContext.Units.Select(u => new SelectListItem
-            {
-                Text = u.Title.ToString(),
-                Value = u.Id.ToString()
-            }).ToListAsync();
+            var unitsSelectItems = await _warehouseDbContext.Units
+                .Select(u => new SelectListItem
+                {
+                    Text = u.Title.ToString(),
+                    Value = u.Id.ToString()
+                })
+                .ToListAsync();
 
-            var receiptNumbersSelectItems = await _warehouseDbContext.Receipts.Select(r => new SelectListItem
-            {
-                Text = r.Number.ToString(),
-                Value = r.Id.ToString()
-            }).ToListAsync();
+            var receiptNumbersSelectItems = await _warehouseDbContext.Receipts
+                .Select(r => new SelectListItem
+                {
+                    Text = r.Number.ToString(),
+                    Value = r.Id.ToString()
+                })
+                .ToListAsync();
 
             var vm = new CreateReceiptViewModel()
             {
@@ -198,20 +210,26 @@ namespace Warehouse.Web.Controllers
                 }
             }
 
-            var resources = await _warehouseDbContext.Resources.ToListAsync();
-            var units = await _warehouseDbContext.Units.ToListAsync();
+            TempData["Error"] = "Ошибка валидации.";
 
-            receiptModel.Resources = resources.Select(r => new SelectListItem
-            {
-                Text = r.Title,
-                Value = r.Id.ToString()
-            });
+            var resourcesSelectItems = await _warehouseDbContext.Resources
+                .Select(r => new SelectListItem
+                {
+                    Text = r.Title.ToString(),
+                    Value = r.Id.ToString()
+                })
+                .ToListAsync();
 
-            receiptModel.Units = units.Select(r => new SelectListItem
-            {
-                Text = r.Title,
-                Value = r.Id.ToString()
-            });
+            var unitsSelectItems = await _warehouseDbContext.Units
+                .Select(u => new SelectListItem
+                {
+                    Text = u.Title.ToString(),
+                    Value = u.Id.ToString()
+                })
+                .ToListAsync();
+
+            receiptModel.Resources = resourcesSelectItems;
+            receiptModel.Units = unitsSelectItems;
 
             return View(receiptModel);
         }
@@ -227,9 +245,6 @@ namespace Warehouse.Web.Controllers
             {
                 var receipt = await _warehouseDbContext.Receipts
                     .Include(r => r.ReceiptItems)
-                        .ThenInclude(ri => ri.Resource)
-                    .Include(r => r.ReceiptItems)
-                        .ThenInclude(ri => ri.Unit)
                     .FirstOrDefaultAsync(r => r.Id == id);
 
                 if (receipt == null)
@@ -237,17 +252,21 @@ namespace Warehouse.Web.Controllers
                     return NotFound();
                 }
 
-                var resourcesSelectItems = await _warehouseDbContext.Resources.Select(r => new SelectListItem
-                {
-                    Text = r.Title.ToString(),
-                    Value = r.Id.ToString()
-                }).ToListAsync();
+                var resourcesSelectItems = await _warehouseDbContext.Resources
+                    .Select(r => new SelectListItem
+                    {
+                        Text = r.Title.ToString(),
+                        Value = r.Id.ToString()
+                    })
+                    .ToListAsync();
 
-                var unitsSelectItems = await _warehouseDbContext.Units.Select(u => new SelectListItem
-                {
-                    Text = u.Title.ToString(),
-                    Value = u.Id.ToString()
-                }).ToListAsync();
+                var unitsSelectItems = await _warehouseDbContext.Units
+                    .Select(u => new SelectListItem
+                    {
+                        Text = u.Title.ToString(),
+                        Value = u.Id.ToString()
+                    })
+                    .ToListAsync();
 
                 var vm = new EditReceiptViewModel()
                 {
@@ -325,17 +344,21 @@ namespace Warehouse.Web.Controllers
                     await _warehouseDbContext.SaveChangesAsync();
                     TempData["Success"] = "Поступление успешно отредактировано.";
 
-                    receiptModel.Resources = await _warehouseDbContext.Resources.Select(r => new SelectListItem
-                    {
-                        Text = r.Title.ToString(),
-                        Value = r.Id.ToString()
-                    }).ToListAsync();
+                    receiptModel.Resources = await _warehouseDbContext.Resources
+                        .Select(r => new SelectListItem
+                        {
+                            Text = r.Title.ToString(),
+                            Value = r.Id.ToString()
+                        })
+                        .ToListAsync();
 
-                    receiptModel.Units = await _warehouseDbContext.Units.Select(u => new SelectListItem
-                    {
-                        Text = u.Title.ToString(),
-                        Value = u.Id.ToString()
-                    }).ToListAsync();
+                    receiptModel.Units = await _warehouseDbContext.Units
+                        .Select(u => new SelectListItem
+                        {
+                            Text = u.Title.ToString(),
+                            Value = u.Id.ToString()
+                        })
+                        .ToListAsync();
 
                     return View(receiptModel);
                 }
