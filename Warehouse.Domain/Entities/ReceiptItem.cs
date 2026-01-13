@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using Warehouse.Domain.Interfaces;
 
 namespace Warehouse.Domain.Entities
 {
-    public class ReceiptItem
+    public class ReceiptItem : IOperationItem
     {
         public int Id { get; set; }
         public int ReceiptId { get; set; }

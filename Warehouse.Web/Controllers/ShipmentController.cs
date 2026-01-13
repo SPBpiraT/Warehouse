@@ -1,9 +1,14 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Globalization;
+using System.Reflection.Metadata;
+using System.Resources;
 using System.Text.Json;
 using Warehouse.Domain.Entities;
+using Warehouse.Infrastructure;
+using Warehouse.Web.Helpers;
 using Warehouse.Web.ViewModels.Shipment;
 
 namespace Warehouse.Web.Controllers
@@ -11,151 +16,168 @@ namespace Warehouse.Web.Controllers
     public class ShipmentController : Controller
     {
         private readonly ILogger<ShipmentController> _logger;
-        private readonly IMemoryCache _memoryCache;
+        private readonly WarehouseDbContext _warehouseDbContext;
 
-        public ShipmentController(ILogger<ShipmentController> logger, IMemoryCache memoryCache)
+        public ShipmentController(ILogger<ShipmentController> logger,
+            WarehouseDbContext warehouseDbContext)
         {
             _logger = logger;
-            _memoryCache = memoryCache;
+            _warehouseDbContext = warehouseDbContext;
         }
 
         public async Task<IActionResult> Index([Bind("DateRange,SelectedClients,SelectedNumbers,SelectedResources,SelectedUnits")] ShipmentsListViewModel shipmentsListView)
         {
-            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-            var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(u => u.IsActive) ?? new List<Client>();
-            var shipmentsCache = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
-            var shipmentItemsCache = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems") ?? new List<ShipmentItem>();
-
-            var shipments = JsonSerializer.Deserialize<List<Shipment>>(JsonSerializer.Serialize(shipmentsCache));
-            var shipmentItems = JsonSerializer.Deserialize<List<ShipmentItem>>(JsonSerializer.Serialize(shipmentItemsCache));
-
-            if (shipmentsListView.DateRange is not null)
+            try
             {
-                var dates = shipmentsListView.DateRange.Split(" - ");
+                var resourcesSelectItems = await _warehouseDbContext.Resources //TODO: Filter by IsActive resource, unit, client in receipt, shipment and balance controller
+                    .Select(r => new SelectListItem
+                    {
+                        Text = r.Title,
+                        Value = r.Id.ToString()
+                    })
+                    .ToListAsync();
 
-                if (DateTime.TryParseExact(dates[0], "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime start) &&
-                    DateTime.TryParseExact(dates[1], "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime end))
+                var unitsSelectItems = await _warehouseDbContext.Units
+                    .Select(u => new SelectListItem
+                    {
+                        Text = u.Title,
+                        Value = u.Id.ToString()
+                    })
+                    .ToListAsync();
+
+                var shipmentNumbersSelectItems = await _warehouseDbContext.Shipments
+                    .Select(s => new SelectListItem
+                    {
+                        Text = s.Number.ToString(),
+                        Value = s.Id.ToString()
+                    })
+                    .ToListAsync();
+
+                var shipmentClientsSelectItems = await _warehouseDbContext.Clients
+                    .Select(c => new SelectListItem
+                    {
+                        Text = c.Title,
+                        Value = c.Id.ToString()
+                    })
+                    .ToListAsync();
+
+                DateTime? start = null;
+                DateTime? end = null;
+
+                if (shipmentsListView.DateRange is not null)
                 {
-                    shipments = shipments.Where(r => r.Date >= start && r.Date <= end).ToList();
+                    var dates = shipmentsListView.DateRange.Split(" - ");
+                    start = DateTime.ParseExact(dates[0], "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None); //TODO: Handle parsing exceptions
+                    end = DateTime.ParseExact(dates[1], "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None);
                 }
-                else
-                {
-                    //TODO: Add error handle
-                }
-            }
 
-            if (shipmentsListView.SelectedNumbers != null && shipmentsListView.SelectedNumbers.Any())
-            {
-                shipments = shipments.Where(r => shipmentsListView.SelectedNumbers.Contains(r.Id)).ToList();
-            }
-
-            if (shipmentsListView.SelectedClients != null && shipmentsListView.SelectedClients.Any())
-            {
-                shipments = shipments.Where(r => shipmentsListView.SelectedClients.Contains(r.Id)).ToList();
-            }
-
-            if (shipmentsListView.SelectedResources != null && shipmentsListView.SelectedResources.Any())
-            {
-                var filteredShipmentIds = shipmentItems
-                    .Where(si => shipmentsListView.SelectedResources.Contains(si.ResourceId))
-                    .Select(si => si.ShipmentId)
-                    .Distinct()
-                    .ToList();
+                var shipments = await _warehouseDbContext.Shipments
+                    .Where(s => start == null || s.Date >= start)
+                    .Where(s => end == null || s.Date <= end)
+                    .Where(s => shipmentsListView.SelectedNumbers == null ||
+                                shipmentsListView.SelectedNumbers.Count() <= 0 ||
+                                shipmentsListView.SelectedNumbers.Contains(s.Id))
+                    .Where(s => shipmentsListView.SelectedClients == null ||
+                                shipmentsListView.SelectedClients.Count() <= 0 ||
+                                shipmentsListView.SelectedClients.Contains(s.Id))
+                    .Select(s => new Shipment
+                    {
+                        Id = s.Id,
+                        Date = s.Date,
+                        Number = s.Number,
+                        ClientId = s.ClientId,
+                        Client = new Client { Id = s.Client.Id, Title = s.Client.Title },
+                        IsSigned = s.IsSigned,
+                        ShipmentItems = s.ShipmentItems.Select(si => new ShipmentItem
+                        {
+                            Id = si.Id,
+                            Quantity = si.Quantity,
+                            Resource = si.Resource,
+                            ResourceId = si.ResourceId,
+                            Unit = si.Unit,
+                            UnitId = si.UnitId
+                        })
+                        .ToList()
+                    })
+                    .ToListAsync();
 
                 shipments = shipments
-                    .Where(s => filteredShipmentIds.Contains(s.Id))
-                    .ToList();
-            }
-
-            if (shipmentsListView.SelectedUnits != null && shipmentsListView.SelectedUnits.Any())
-            {
-                var filteredShipmentIds = shipmentItems
-                    .Where(si => shipmentsListView.SelectedUnits.Contains(si.UnitId))
-                    .Select(si => si.ShipmentId)
-                    .Distinct()
+                    .Where(s => shipmentsListView.SelectedResources == null ||
+                                shipmentsListView.SelectedResources.Count() <= 0 ||
+                                s.ShipmentItems.Any(si => shipmentsListView.SelectedResources.Contains(si.ResourceId)))
+                    .Where(s => shipmentsListView.SelectedUnits == null ||
+                                shipmentsListView.SelectedUnits.Count() <= 0 ||
+                                s.ShipmentItems.Any(ri => shipmentsListView.SelectedUnits.Contains(ri.UnitId)))
                     .ToList();
 
-                shipments = shipments
-                    .Where(s => filteredShipmentIds.Contains(s.Id))
-                    .ToList();
+                var vm = new ShipmentsListViewModel()
+                {
+                    Shipments = shipments,
+                    ShipmentsNumbers = shipmentNumbersSelectItems,
+                    Clients = shipmentClientsSelectItems,
+                    Resources = resourcesSelectItems,
+                    Units = unitsSelectItems,
+                    DateRange = shipmentsListView.DateRange ?? "01-01-2025 - 01-01-2027",
+                    SelectedNumbers = shipmentsListView.SelectedNumbers ?? new List<int>(),
+                    SelectedClients = shipmentsListView.SelectedClients ?? new List<int>(),
+                    SelectedResources = shipmentsListView.SelectedResources ?? new List<int>(),
+                    SelectedUnits = shipmentsListView.SelectedUnits ?? new List<int>()
+                };
+
+                return View(vm);
             }
-
-            foreach (var shipment in shipments)
+            catch (Exception)
             {
-                shipment.Client = clients.SingleOrDefault(c => c.Id == shipment.ClientId);
-                shipment.ShipmentItems = shipmentItems.Where(x => x.ShipmentId == shipment.Id).ToList();
-
-                foreach (var shipmentItem in shipment.ShipmentItems)
-                {
-                    shipmentItem.Resource = resources.SingleOrDefault(r => r.Id == shipmentItem.ResourceId);
-                    shipmentItem.Unit = units.SingleOrDefault(u => u.Id == shipmentItem.UnitId);
-                }
+                throw;
             }
-
-            var vm = new ShipmentsListViewModel()
-            {
-                Shipments = shipments,
-                ShipmentsNumbers = shipmentsCache.Select(s => new SelectListItem
-                {
-                    Text = s.Number.ToString(),
-                    Value = s.Id.ToString()
-                }),
-                Clients = clients.Select(c => new SelectListItem
-                {
-                    Text = c.Title.ToString(),
-                    Value = c.Id.ToString()
-                }),
-                Resources = resources.Select(r => new SelectListItem
-                {
-                    Text = r.Title,
-                    Value = r.Id.ToString()
-                }),
-                Units = units.Select(u => new SelectListItem
-                {
-                    Text = u.Title,
-                    Value = u.Id.ToString()
-                }),
-                DateRange = shipmentsListView.DateRange ?? "01-01-2024 - 01-01-2025",
-                SelectedNumbers = shipmentsListView.SelectedNumbers ?? new List<int>(),
-                SelectedClients = shipmentsListView.SelectedClients ?? new List<int>(),
-                SelectedResources = shipmentsListView.SelectedResources ?? new List<int>(),
-                SelectedUnits = shipmentsListView.SelectedUnits ?? new List<int>()
-            };
-            return View(vm);
         }
 
         public async Task<IActionResult> Create()
         {
-            var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
-            var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(u => u.IsActive) ?? new List<Client>();
-            var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-            var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
+            var resourcesSelectItems = await _warehouseDbContext.Resources
+                .Select(r => new SelectListItem
+                {
+                    Text = r.Title.ToString(),
+                    Value = r.Id.ToString()
+                })
+                .ToListAsync();
+
+            var unitsSelectItems = await _warehouseDbContext.Units
+                .Select(u => new SelectListItem
+                {
+                    Text = u.Title.ToString(),
+                    Value = u.Id.ToString()
+                })
+                .ToListAsync();
+
+            var shipmentNumbersSelectItems = await _warehouseDbContext.Shipments
+                .Select(r => new SelectListItem
+                {
+                    Text = r.Number.ToString(),
+                    Value = r.Id.ToString()
+                })
+                .ToListAsync();
+
+            var shipmentClientsSelectItems = await _warehouseDbContext.Clients
+                .Select(c => new SelectListItem
+                {
+                    Text = c.Title,
+                    Value = c.Id.ToString()
+                })
+                .ToListAsync();
 
             var vm = new CreateShipmentViewModel()
             {
                 Shipment = new Shipment()
                 {
-                    Id = shipments.Count() == 0 ? 1 : shipments.Last().Id + 1,
-                    Number = shipments.Count() == 0 ? 1 : shipments.Last().Number + 1,
+                    Id = 0,
+                    Number = shipmentNumbersSelectItems.Count == 0 ? 1 : Int32.Parse(shipmentNumbersSelectItems.Last().Text) + 1,
                     Date = DateTime.Now.Date, //TODO: Datetime provider
                     ShipmentItems = new List<ShipmentItem>()
                 },
-                Clients = clients.Select(c => new SelectListItem
-                {
-                    Text = c.Title,
-                    Value = c.Id.ToString()
-                }),
-                Resources = resources.Select(r => new SelectListItem
-                {
-                    Text = r.Title,
-                    Value = r.Id.ToString()
-                }),
-                Units = units.Select(u => new SelectListItem
-                {
-                    Text = u.Title,
-                    Value = u.Id.ToString()
-                })
+                Clients = shipmentClientsSelectItems,
+                Resources = resourcesSelectItems,
+                Units = unitsSelectItems
             };
 
             return View(vm);
@@ -164,209 +186,153 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([Bind("Shipment")] CreateShipmentViewModel shipmentModel)
         {
-            try
+            if (ModelState.IsValid)
             {
-                if (ModelState.IsValid)
+                try //TODO: Add date validation (11-10-20266)
                 {
-                    var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
-                    var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-                    var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-                    var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(u => u.IsActive) ?? new List<Client>();
-                    var shipmentItems = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems") ?? new List<ShipmentItem>();
-                    var balances = _memoryCache.Get<List<Balance>>("Balances") ?? new List<Balance>();
-
-                    shipmentModel.Clients = clients.Select(c => new SelectListItem
+                    if (shipmentModel.Shipment.ShipmentItems is null || shipmentModel.Shipment.ShipmentItems.Count == 0)
                     {
-                        Text = c.Title,
-                        Value = c.Id.ToString()
-                    });
-
-                    shipmentModel.Resources = resources.Select(r => new SelectListItem
-                    {
-                        Text = r.Title,
-                        Value = r.Id.ToString()
-                    });
-
-                    shipmentModel.Units = units.Select(r => new SelectListItem
-                    {
-                        Text = r.Title,
-                        Value = r.Id.ToString()
-                    });
-
-                    if (shipmentModel.Shipment.ShipmentItems != null)
-                    {
-                        if (shipmentModel.Shipment.IsSigned)
-                        {
-                            var balanceChecks = shipmentModel.Shipment.ShipmentItems
-                                .Select(si => new
-                                {
-                                    ModelShipmentItem = si,
-                                    Balance = balances.SingleOrDefault(b => b.ResourceId == si.ResourceId && b.UnitId == si.UnitId),
-                                    BalanceInfo = $"ResourceId: {si.ResourceId}, UnitId: {si.UnitId}"
-                                });
-
-                            var insufficientBalance = balanceChecks.FirstOrDefault(bc => 
-                                bc.Balance is null || bc.Balance.Quantity < bc.ModelShipmentItem.Quantity);
-
-                            if (insufficientBalance != null)
-                            {
-                                TempData["Error"] = $"Невозможно подписать отгрузку: недостаточный баланс. {insufficientBalance.BalanceInfo}";
-
-                                foreach (var item in shipmentModel.Shipment.ShipmentItems)
-                                {
-                                    item.Resource = resources.FirstOrDefault(r => r.Id == item.ResourceId);
-                                    item.Unit = units.FirstOrDefault(u => u.Id == item.UnitId);
-                                }
-
-                                return View(shipmentModel); //TODO: Add awailable balance to view for each row on load?
-                            }
-                        }
-
-                        foreach (var item in shipmentModel.Shipment.ShipmentItems) //!
-                        {
-                            var shipmentItem = new ShipmentItem()
-                            {
-                                Id = shipmentItems.Count() == 0 ? 1 : shipmentItems.Last().Id + 1,
-                                ShipmentId = shipmentModel.Shipment.Id,
-                                ResourceId = item.ResourceId,
-                                UnitId = item.UnitId,
-                                Quantity = item.Quantity
-                            };
-
-                            item.Id = shipmentItem.Id;
-                            item.Resource = resources.FirstOrDefault(r => r.Id == item.ResourceId);
-                            item.Unit = units.FirstOrDefault(u => u.Id == item.UnitId);
-
-                            shipmentItems.Add(shipmentItem);
-
-                            if (shipmentModel.Shipment.IsSigned)
-                            {
-                                var balance = balances.SingleOrDefault(x => x.ResourceId == item.ResourceId && x.UnitId == item.UnitId);
-
-                                if (balance != null)
-                                {
-                                    balance.Quantity -= item.Quantity;
-                                    if (balance.Quantity == 0) balances.Remove(balance);
-                                }
-                                else
-                                {
-                                    TempData["Error"] = "Что-то пошло не так.";
-                                    return RedirectToAction(nameof(Index));
-                                    //Hanlde error
-                                }
-                            }
-                        }
-                        _memoryCache.Set("Balances", balances); //
-                        _memoryCache.Set("ShipmentItems", shipmentItems); //
-                    }
-                    else
-                    {
-                        shipmentModel.Shipment.ShipmentItems = new List<ShipmentItem>();
-                        //TODO: Restrict to create empty shipment
+                        TempData["Error"] = "Отгрузка не может быть пустой.";
+                        return RedirectToAction(nameof(Create)); //TODO: Return Create View with model to edit?
                     }
 
-                    var shipment = new Shipment()
+                    if (shipmentModel.Shipment.IsSigned)
                     {
-                        Id = shipmentModel.Shipment.Id,
-                        Number = shipmentModel.Shipment.Number,
-                        Date = shipmentModel.Shipment.Date,
-                        ClientId = shipmentModel.Shipment.ClientId,
-                        IsSigned = shipmentModel.Shipment.IsSigned
-                    };
+                        var shipmentItems = shipmentModel.Shipment.ShipmentItems.ToList();
+                        var isInvalidBalance = await BalanceHelper.IsUnableToSignShipment(_warehouseDbContext, shipmentItems);
 
-                    shipments.Add(shipment);
+                        if (isInvalidBalance)
+                        {
+                            TempData["Error"] = $"Не возможно подписать отгрузку: недостаточный баланс."; //TODO: invalid balance info. Create result class
+                            return RedirectToAction(nameof(Index)); //TODO: Create unsigned shipment and return Create View for edit?
+                        }
 
-                    _memoryCache.Set("Shipments", shipments); //
+                        BalanceHelper.UpdateBalanceBySigningShipment(_warehouseDbContext, shipmentItems);
+
+                        _warehouseDbContext.Shipments.Add(shipmentModel.Shipment);
+                        await _warehouseDbContext.SaveChangesAsync();
+
+                        TempData["Success"] = "Новая отгрузка успешно добавлена и подписана.";
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    _warehouseDbContext.Shipments.Add(shipmentModel.Shipment);
+                    await _warehouseDbContext.SaveChangesAsync();
 
                     TempData["Success"] = "Новая отгрузка успешно добавлена.";
                     return RedirectToAction(nameof(Index));
                 }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
 
-                TempData["Error"] = "Что-то пошло не так.";
-                return RedirectToAction(nameof(Index));
-            }
-            catch (InvalidOperationException)
-            {
-                TempData["Error"] = "Обнаружены дублирующиеся балансы. Обратитесь к администратору.";
-                return RedirectToAction(nameof(Index));
-            }
-            catch (Exception)
-            {
-                TempData["Error"] = "Что-то пошло не так.";
-                return RedirectToAction(nameof(Index));
-            }
+            TempData["Error"] = "Ошибка валидации.";
+
+            var resourcesSelectItems = await _warehouseDbContext.Resources //TODO: create method for returning selectitems?
+                .Select(r => new SelectListItem
+                {
+                    Text = r.Title.ToString(),
+                    Value = r.Id.ToString()
+                })
+                .ToListAsync();
+
+            var unitsSelectItems = await _warehouseDbContext.Units
+                .Select(u => new SelectListItem
+                {
+                    Text = u.Title.ToString(),
+                    Value = u.Id.ToString()
+                })
+                .ToListAsync();
+
+            var shipmentClientsSelectItems = await _warehouseDbContext.Clients
+                .Select(c => new SelectListItem
+                {
+                    Text = c.Title,
+                    Value = c.Id.ToString()
+                })
+                .ToListAsync();
+
+            shipmentModel.Shipment.ShipmentItems ??= new List<ShipmentItem>();
+            shipmentModel.Resources = resourcesSelectItems;
+            shipmentModel.Units = unitsSelectItems;
+            shipmentModel.Clients = shipmentClientsSelectItems;
+
+            return View(shipmentModel);
         }
 
         public async Task<IActionResult> Edit(int id)
         {
             if (id <= 0)
             {
-                return NotFound();
+                TempData["Error"] = "Не верный идентификатор.";
+                return RedirectToAction(nameof(Index));
             }
 
             try
             {
-                var shipments = _memoryCache.Get<List<Shipment>>("Shipments") ?? new List<Shipment>();
-
-                var shipment = shipments.SingleOrDefault(x => x.Id == id);
+                var shipment = await _warehouseDbContext.Shipments
+                    .Include(s => s.ShipmentItems)
+                    .FirstOrDefaultAsync(s => s.Id == id);
 
                 if (shipment is null)
                 {
-                    return NotFound();
+                    TempData["Error"] = "Отгрузка не найдена.";
+                    return RedirectToAction(nameof(Index));
                 }
 
                 if (shipment.IsSigned)
                 {
-                    return RedirectToAction(nameof(EditSigned), shipment);
+                    return RedirectToAction(nameof(EditSigned), new { id = shipment.Id });
                 }
 
-                var clients = _memoryCache.Get<List<Client>>("Clients")?.Where(r => r.IsActive) ?? new List<Client>();
-                var resources = _memoryCache.Get<List<Resource>>("Resources")?.Where(r => r.IsActive) ?? new List<Resource>();
-                var units = _memoryCache.Get<List<Unit>>("Units")?.Where(u => u.IsActive) ?? new List<Unit>();
-                var shipmentItemsCache = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems") ?? new List<ShipmentItem>();
-
-                var shipmentItems = JsonSerializer.Deserialize<List<ShipmentItem>>(JsonSerializer.Serialize(shipmentItemsCache));
-
-                var shipmentModel = new Shipment()
+                var shipmentModel = new Shipment() //TODO: service should return dto
                 {
                     Id = shipment.Id,
                     Number = shipment.Number,
                     ClientId = shipment.ClientId,
                     Date = shipment.Date,
-                    ShipmentItems = shipmentItems.Where(x => x.ShipmentId == shipment.Id).ToList() ?? new List<ShipmentItem>()
+                    IsSigned = shipment.IsSigned,
+                    ShipmentItems = shipment.ShipmentItems
                 };
 
-                if (shipmentModel.ShipmentItems.Any())
-                {
-                    foreach (var shipmentItem in shipmentModel.ShipmentItems)
+                var resourcesSelectItems = await _warehouseDbContext.Resources //TODO: create method for returning selectitems? Cache results.
+                    .Where(r => r.IsActive)
+                    .Select(r => new SelectListItem
                     {
-                        shipmentItem.Resource = resources.FirstOrDefault(r => r.Id == shipmentItem.ResourceId);
-                        shipmentItem.Unit = units.FirstOrDefault(u => u.Id == shipmentItem.UnitId);
-                    }
-                }
+                        Text = r.Title.ToString(),
+                        Value = r.Id.ToString()
+                    })
+                    .ToListAsync();
+
+                var unitsSelectItems = await _warehouseDbContext.Units
+                    .Where(u => u.IsActive)
+                    .Select(u => new SelectListItem
+                    {
+                        Text = u.Title.ToString(),
+                        Value = u.Id.ToString()
+                    })
+                    .ToListAsync();
+
+                var shipmentClientsSelectItems = await _warehouseDbContext.Clients
+                    .Where(c => c.IsActive)
+                    .Select(c => new SelectListItem
+                    {
+                        Text = c.Title,
+                        Value = c.Id.ToString()
+                    })
+                    .ToListAsync();
 
                 var vm = new EditShipmentViewModel()
                 {
                     Shipment = shipmentModel,
-                    Clients = clients.Select(c => new SelectListItem
-                    {
-                        Text = c.Title,
-                        Value = c.Id.ToString()
-                    }),
-                    Resources = resources.Select(r => new SelectListItem
-                    {
-                        Text = r.Title,
-                        Value = r.Id.ToString()
-                    }),
-                    Units = units.Select(u => new SelectListItem
-                    {
-                        Text = u.Title,
-                        Value = u.Id.ToString()
-                    })
+                    Clients = shipmentClientsSelectItems,
+                    Resources = resourcesSelectItems,
+                    Units = unitsSelectItems
                 };
 
                 return View(vm);
-
             }
             catch (Exception)
             {
@@ -375,55 +341,33 @@ namespace Warehouse.Web.Controllers
             }
         }
 
-        public async Task<IActionResult> EditSigned(Shipment shipment)
+        public async Task<IActionResult> EditSigned(int id)
         {
-            if (shipment is null)
+            if (id <= 0)
             {
-                return NotFound();
+                TempData["Error"] = "Не верный идентификатор.";
+                return RedirectToAction(nameof(Index));
             }
 
             try
             {
-                var client = _memoryCache.Get<List<Client>>("Clients")?
-                    .Where(r => r.IsActive)
-                    .FirstOrDefault(x => x.Id == shipment.ClientId) ?? throw new Exception(); //TODO: Handle null client ex
+                var shipment = await _warehouseDbContext.Shipments
+                    .Include(s => s.Client)
+                    .Include(s => s.ShipmentItems)
+                        .ThenInclude(si => si.Resource)
+                    .Include(s => s.ShipmentItems)
+                        .ThenInclude(si => si.Unit)
+                    .FirstOrDefaultAsync(x => x.Id == id);
 
-                var shipmentItemsCache = _memoryCache.Get<List<ShipmentItem>>("ShipmentItems")?
-                    .Where(x => x.ShipmentId == shipment.Id)
-                    .ToList() ?? new List<ShipmentItem>();
-
-                var shipmentItems = JsonSerializer.Deserialize<List<ShipmentItem>>(JsonSerializer.Serialize(shipmentItemsCache)) ?? new List<ShipmentItem>();
-
-                var resources = _memoryCache.Get<List<Resource>>("Resources")?
-                    .Where(r => r.IsActive && shipmentItems.Any(si => si.ResourceId == r.Id))
-                    .ToList() ?? new List<Resource>();
-
-                var units = _memoryCache.Get<List<Unit>>("Units")?
-                    .Where(u => u.IsActive && shipmentItems.Any(si => si.UnitId == u.Id))
-                    .ToList() ?? new List<Unit>();
-
-                var shipmentModel = new Shipment()
+                if (shipment is null)
                 {
-                    Id = shipment.Id,
-                    Number = shipment.Number,
-                    ClientId = shipment.ClientId,
-                    Client = client,
-                    Date = shipment.Date,
-                    ShipmentItems = shipmentItems
-                };
-
-                if (shipmentModel.ShipmentItems.Any())
-                {
-                    foreach (var shipmentItem in shipmentModel.ShipmentItems)
-                    {
-                        shipmentItem.Resource = resources.FirstOrDefault(r => r.Id == shipmentItem.ResourceId);
-                        shipmentItem.Unit = units.FirstOrDefault(u => u.Id == shipmentItem.UnitId);
-                    }
+                    TempData["Error"] = "Отгрузка не найдена.";
+                    return RedirectToAction(nameof(Index));
                 }
 
                 var vm = new EditShipmentViewModel()
                 {
-                    Shipment = shipmentModel
+                    Shipment = shipment,
                 };
 
                 return View(vm);
@@ -432,6 +376,174 @@ namespace Warehouse.Web.Controllers
             {
                 TempData["Error"] = "Что-то пошло не так.";
                 return RedirectToAction(nameof(Index));
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Edit(int id, [Bind("Shipment")] EditShipmentViewModel shipmentModel)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                return BadRequest(new { Errors = errors }); //TODO: Error view
+            }
+            else
+            {
+                if (id != shipmentModel.Shipment.Id || id <= 0)
+                {
+                    BadRequest("Неверный идентификатор"); //TODO: Error view
+                }
+
+                if (shipmentModel.Shipment.ShipmentItems is null || !shipmentModel.Shipment.ShipmentItems.Any())
+                {
+                    TempData["Error"] = "Отгрузка не может быть пустой.";
+                    return RedirectToAction(nameof(Create)); //TODO: Return Edit View with model to edit?
+                }
+
+                try
+                {
+                    var numberExists = await _warehouseDbContext.Shipments
+                        .AnyAsync(s => s.Id != shipmentModel.Shipment.Id && s.Number == shipmentModel.Shipment.Number);
+
+                    if (numberExists)
+                    {
+                        TempData["Error"] = "Уже существует отгрузка с таким номером.";
+                        return RedirectToAction(nameof(Index)); //TODO: Return View(model) for continue editing
+                    }
+
+                    var entity = await _warehouseDbContext.Shipments
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.Id == id);
+
+                    if (entity == null)
+                    {
+                        TempData["Error"] = "Отгрузка не найдена.";
+                        return RedirectToAction(nameof(Index));
+                    }
+
+                    var previousItems = await _warehouseDbContext.ShipmentItems
+                        .Where(si => si.ShipmentId == shipmentModel.Shipment.Id)
+                        .AsNoTracking()
+                        .ToListAsync();
+
+                    var newItems = shipmentModel.Shipment.ShipmentItems.ToList();
+
+                    if (!entity.IsSigned && shipmentModel.Shipment.IsSigned)
+                    {
+                        var isInvalidBalance = await BalanceHelper.IsUnableToSignShipment(_warehouseDbContext, newItems);
+
+                        if (isInvalidBalance)
+                        {
+                            TempData["Error"] = "Невозможно подписать отгрузку: недостаточный баланс.";
+                            return RedirectToAction(nameof(Edit), new { id });
+                        }
+
+                        BalanceHelper.UpdateBalanceBySigningShipment(_warehouseDbContext, newItems);
+
+                        TempData["Success"] = "Отгрузка успешно подписана.";
+                    }                
+                    
+                    var shipmentItemsToDelete = previousItems
+                        .Where(si => !shipmentModel.Shipment.ShipmentItems.Any(i => i.Id == si.Id));
+
+                    _warehouseDbContext.ShipmentItems.RemoveRange(shipmentItemsToDelete);
+                    _warehouseDbContext.Shipments.Update(shipmentModel.Shipment);
+
+                    await _warehouseDbContext.SaveChangesAsync();
+                    TempData["Success"] += "Отгрузка успешно отредактирована.";
+
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (Exception) //TODO: Handle exceptions
+                {
+                    throw;
+                }
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Unsign(int id)
+        {
+            if (id <= 0)
+            {
+                return NotFound(); //
+            }
+
+            try
+            {
+                var entity = await _warehouseDbContext.Shipments
+                    .Include(e => e.ShipmentItems)
+                    .FirstOrDefaultAsync(entity => entity.Id == id);
+
+                if (entity == null)
+                {
+                    TempData["Error"] = "Отгрузка не найдена.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (entity.IsSigned)
+                {
+                    entity.IsSigned = false;
+                    _warehouseDbContext.Shipments.Update(entity);
+
+                    BalanceHelper.UpdateBalanceByUnsigningShipment(_warehouseDbContext, entity.ShipmentItems.ToList());
+
+                    TempData["Success"] = "Отгрузка успешно отозвана.";
+                    await _warehouseDbContext.SaveChangesAsync();
+                }
+                else
+                {
+                    TempData["Error"] = "Что-то пошло не так.";
+                }
+
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Delete(int id)
+        {
+            if (id <= 0)
+            {
+                return NotFound(); //
+            }
+
+            try
+            {
+                var entity = await _warehouseDbContext.Shipments
+                    .Include(e => e.ShipmentItems)
+                    .FirstOrDefaultAsync(entity => entity.Id == id);
+
+                if (entity == null)
+                {
+                    TempData["Error"] = "Отгрузка не найдена.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                if (entity.IsSigned)
+                {
+                    TempData["Error"] = "Не возможно удалить подписанную отгрузку.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                _warehouseDbContext.Shipments.Remove(entity);
+                await _warehouseDbContext.SaveChangesAsync();
+
+                TempData["Success"] = "Отгрузка успешно удалена.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception)
+            {
+                throw;
             }
         }
     }
