@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Warehouse.Domain.Entities;
+using Warehouse.Domain.Interfaces;
 using Warehouse.Infrastructure;
 
 namespace Warehouse.Web.Helpers
@@ -8,16 +9,30 @@ namespace Warehouse.Web.Helpers
     {
         public static void UpdateBalanceFromReceipt(
             WarehouseDbContext context,
-            List<ReceiptItem> previousItems,
-            List<ReceiptItem> newItems)
+            IEnumerable<IOperationItem> previousItems,
+            IEnumerable<IOperationItem> newItems)
         {
             UpdateBalance(context, newItems);
             UpdateBalance(context, previousItems, true);
         }
 
+        public static void UpdateBalanceBySigningShipment(
+            WarehouseDbContext context,
+            IEnumerable<IOperationItem> shipmentItems)
+        {
+            UpdateBalance(context, shipmentItems, true);
+        }
+
+        public static void UpdateBalanceByUnsigningShipment(
+            WarehouseDbContext context,
+            IEnumerable<IOperationItem> shipmentItems)
+        {
+            UpdateBalance(context, shipmentItems);
+        }
+
         private static void UpdateBalance(
             WarehouseDbContext context,
-            List<ReceiptItem> items, 
+            IEnumerable<IOperationItem> items, 
             bool isSubstraction = false)
         {
             var balancesToUpdate = new List<Balance>();
@@ -63,7 +78,7 @@ namespace Warehouse.Web.Helpers
         {
             return await context.Balances
                 .Select(b =>
-                 context.ReceiptItems
+                    context.ReceiptItems
                         .Where(r => r.ReceiptId == id)
                         .Where(r => r.ResourceId == b.ResourceId && r.UnitId == b.UnitId)
                         .FirstOrDefault(r => r.Quantity > b.Quantity)
@@ -71,10 +86,33 @@ namespace Warehouse.Web.Helpers
                 .Where(r => r != null)
                 .AnyAsync();
         }
+
+        public static async Task<bool> IsUnableToSignShipment(WarehouseDbContext context, List<ShipmentItem> items)
+        {
+            foreach (var item in items)
+            {
+                var balance = await context.Balances.SingleOrDefaultAsync(b => b.ResourceId == item.ResourceId && b.UnitId == item.UnitId);
+
+                if (balance == null)
+                {
+                    //TODO: Not existing balance result
+                    return true;
+                }
+
+                if (balance.Quantity < item.Quantity)
+                {
+                    //TODO: SignShipmentResult? insufficient balance
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public static async Task<bool> IsInvalidReceiptUpdate(
-            WarehouseDbContext context, //context
-            List<ReceiptItem> previousItems,
-            List<ReceiptItem> newItems)
+            WarehouseDbContext context,
+            IEnumerable<IOperationItem> previousItems,
+            IEnumerable<IOperationItem> newItems)
         {
             foreach (var previousItem in previousItems)
             {

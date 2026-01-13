@@ -165,11 +165,11 @@ namespace Warehouse.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([Bind("Receipt")] CreateReceiptViewModel receiptModel)
         {
-            if (ModelState.IsValid)
+            if (ModelState.IsValid) //TODO: Add date validator
             {
                 try
                 {
-                    var receipts = await _warehouseDbContext.Receipts.ToListAsync();
+                    var receipts = await _warehouseDbContext.Receipts.ToListAsync(); //TODO: useless query
 
                     if (receiptModel.Receipt.ReceiptItems != null && receiptModel.Receipt.ReceiptItems.Count > 0)
                     {
